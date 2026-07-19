@@ -33,7 +33,7 @@ const variantClasses: Record<ButtonVariant, string> = {
   primary:
     "bg-[var(--color-violet)] text-[var(--color-black)] hover:bg-[#b09aff] focus-visible:outline-[var(--color-violet)]",
   secondary:
-    "border border-white/35 text-[var(--color-white)] hover:border-[var(--color-violet)] hover:text-[var(--color-violet)] bg-transparent",
+    "border border-[color:color-mix(in_srgb,var(--color-white)_35%,transparent)] text-[var(--color-white)] hover:border-[var(--color-violet)] hover:text-[var(--color-violet)] bg-transparent",
   ghost:
     "text-[var(--color-white)] hover:text-[var(--color-violet)] bg-transparent px-0",
   onLight:

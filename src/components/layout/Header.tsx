@@ -36,24 +36,24 @@ export function Header() {
   return (
     <header
       className={cn(
-        "fixed inset-x-0 top-0 z-50 bg-dark transition-[background-color,backdrop-filter,padding] duration-300",
+        "fixed inset-x-0 top-0 z-50 surface-dark transition-[background-color,backdrop-filter,padding] duration-300",
         scrolled || menuOpen
           ? "bg-[var(--color-black)]/95 backdrop-blur-md py-3"
-          : "bg-[var(--color-black)]/70 backdrop-blur-sm py-5",
+          : "bg-[var(--color-black)]/72 backdrop-blur-sm py-5",
       )}
     >
       <div className="container-site flex items-center justify-between gap-6">
         <Logo tone="light" variant="compact" />
 
         <nav
-          className="hidden lg:flex items-center gap-8"
+          className="hidden lg:flex items-center gap-9"
           aria-label="Hauptnavigation"
         >
           {mainNavigation.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="font-[family-name:var(--font-heading)] text-sm tracking-wide text-white/80 no-underline transition-colors hover:text-[var(--color-violet)]"
+              className="nav-link font-[family-name:var(--font-heading)] text-sm tracking-wide"
             >
               {item.label}
             </Link>

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { fontBody, fontHeading } from "@/lib/fonts";
+import { fontAccent, fontBody, fontHeading } from "@/lib/fonts";
 import { siteConfig, siteMetadata } from "@/data/site";
 import "./globals.css";
 
@@ -22,7 +22,7 @@ export default function RootLayout({
   return (
     <html
       lang="de"
-      className={`${fontHeading.variable} ${fontBody.variable} h-full antialiased`}
+      className={`${fontHeading.variable} ${fontBody.variable} ${fontAccent.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-[family-name:var(--font-body)]">
         <a href="#main-content" className="skip-link">

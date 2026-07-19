@@ -1,15 +1,12 @@
 import { projects } from "@/data/projects";
 import { ProjectPreview } from "./ProjectPreview";
 
+/** Used if imported from projects path — home wraps the same mapping. */
 export function ProjectShowcase() {
   return (
     <>
-      {projects.map((project, index) => (
-        <ProjectPreview
-          key={project.id}
-          project={project}
-          reverse={index % 2 === 1}
-        />
+      {projects.map((project) => (
+        <ProjectPreview key={project.id} project={project} />
       ))}
     </>
   );

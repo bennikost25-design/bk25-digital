@@ -2,93 +2,119 @@ import Link from "next/link";
 import { packages } from "@/data/packages";
 import { Button } from "@/components/ui/Button";
 import { Reveal } from "@/components/ui/Reveal";
-import { SectionHeading } from "@/components/ui/SectionHeading";
 import { SectionLabel } from "@/components/ui/SectionLabel";
+import { cn } from "@/lib/utils";
 
 export function PackagesSection() {
   return (
     <section
-      className="bg-[var(--color-white)] text-[var(--color-black)] section-pad"
+      className="relative overflow-hidden bg-[var(--color-white)] text-[var(--color-black)] section-pad"
       aria-labelledby="packages-heading"
     >
       <div className="container-site">
         <Reveal>
           <SectionLabel tone="light">Pakete</SectionLabel>
-          <SectionHeading
-            as="h2"
+          <h2
             id="packages-heading"
-            tone="light"
-            className="mt-4"
+            className="mt-4 max-w-[16ch] text-[clamp(1.9rem,4.5vw,3.25rem)]"
           >
             Zwei klare Wege zu einem professionellen Auftritt.
-          </SectionHeading>
+          </h2>
+          <p className="mt-5 max-w-xl text-[var(--color-muted)]">
+            Keine Preiskarten – zwei unterschiedliche Ausgangspunkte, jeweils
+            mit einem Konzeptprojekt als Orientierung.
+          </p>
         </Reveal>
 
-        <div className="mt-14 grid gap-0 lg:grid-cols-2">
-          {packages.map((pkg, index) => (
-            <Reveal
-              key={pkg.id}
-              delay={(index + 1) as 1 | 2}
-              className={`border border-[var(--color-black)]/10 p-8 sm:p-10 ${
-                index === 1
-                  ? "bg-[var(--color-black)] text-[var(--color-white)] lg:-mt-6 lg:mb-6"
-                  : "bg-[var(--color-light)]"
-              }`}
-            >
-              <p
-                className={`font-[family-name:var(--font-heading)] text-xs uppercase tracking-[0.22em] ${
-                  index === 1
-                    ? "text-[var(--color-violet)]"
-                    : "text-[var(--color-violet-dark)]"
-                }`}
-              >
-                {index === 0 ? "01" : "02"}
-              </p>
-              <h3 className="mt-3 text-[clamp(1.75rem,3vw,2.35rem)]">
-                {pkg.name}
-              </h3>
-              <p
-                className={`mt-4 leading-relaxed ${
-                  index === 1 ? "text-white/70" : "text-[var(--color-muted)]"
-                }`}
-              >
-                {pkg.description}
-              </p>
-              <ul className="mt-8 space-y-3">
-                {pkg.features.map((feature) => (
-                  <li key={feature} className="flex gap-3 text-sm sm:text-base">
-                    <span
-                      className={`mt-2 h-3 w-1 shrink-0 skew-x-[-28deg] ${
-                        index === 1
-                          ? "bg-[var(--color-violet)]"
-                          : "bg-[var(--color-violet-dark)]"
-                      }`}
-                      aria-hidden="true"
-                    />
-                    <span className={index === 1 ? "text-white/85" : ""}>
-                      {feature}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-8 text-sm">
-                Beispiel ansehen:{" "}
-                <Link
-                  href={`/projekte/${pkg.exampleProjectSlug}`}
-                  className={
-                    index === 1
-                      ? "text-[var(--color-violet)]"
-                      : "text-[var(--color-violet-dark)]"
-                  }
+        <div className="relative mt-16 md:mt-20">
+          {/* Connecting slash between paths on desktop */}
+          <div
+            className="pointer-events-none absolute left-1/2 top-8 hidden h-[70%] w-1.5 -translate-x-1/2 skew-x-[var(--slash-angle)] bg-[var(--color-violet-dark)]/25 lg:block"
+            aria-hidden="true"
+          />
+
+          <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
+            {packages.map((pkg, index) => {
+              const isKomplett = pkg.id === "komplett";
+              return (
+                <Reveal
+                  key={pkg.id}
+                  delay={(index + 1) as 1 | 2}
+                  variant={index === 0 ? "left" : "right"}
+                  className={cn(isKomplett && "lg:mt-16")}
                 >
-                  {pkg.exampleProjectTitle}
-                </Link>
-              </p>
-            </Reveal>
-          ))}
+                  <article
+                    className={cn(
+                      "relative",
+                      isKomplett
+                        ? "bg-[var(--color-black)] text-[var(--color-white)] px-6 py-10 sm:px-10 sm:py-12"
+                        : "border-t-2 border-[var(--color-violet-dark)] pt-8",
+                    )}
+                  >
+                    <p
+                      className={cn(
+                        "font-[family-name:var(--font-heading)] text-[clamp(3.5rem,10vw,6rem)] leading-none tracking-tighter",
+                        isKomplett
+                          ? "text-[var(--color-violet)]/35"
+                          : "text-[var(--color-violet-dark)]/20",
+                      )}
+                      aria-hidden="true"
+                    >
+                      {String(index + 1).padStart(2, "0")}
+                    </p>
+
+                    <h3 className="-mt-4 text-[clamp(1.85rem,3.5vw,2.6rem)]">
+                      {pkg.name}
+                    </h3>
+                    <p
+                      className={cn(
+                        "mt-4 max-w-md leading-relaxed",
+                        isKomplett ? "text-white/68" : "text-[var(--color-muted)]",
+                      )}
+                    >
+                      {pkg.description}
+                    </p>
+
+                    <ul className="mt-8 space-y-3">
+                      {pkg.features.map((feature) => (
+                        <li key={feature} className="flex gap-3 text-sm sm:text-base">
+                          <span
+                            className={cn(
+                              "mt-2 h-3 w-1 shrink-0 skew-x-[var(--slash-angle)]",
+                              isKomplett
+                                ? "bg-[var(--color-violet)]"
+                                : "bg-[var(--color-violet-dark)]",
+                            )}
+                            aria-hidden="true"
+                          />
+                          <span className={isKomplett ? "text-white/88" : undefined}>
+                            {feature}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <p className="mt-8 text-sm">
+                      Beispiel ansehen:{" "}
+                      <Link
+                        href={`/projekte/${pkg.exampleProjectSlug}`}
+                        className={
+                          isKomplett
+                            ? "text-[var(--color-violet)]"
+                            : "text-[var(--color-violet-dark)]"
+                        }
+                      >
+                        {pkg.exampleProjectTitle}
+                      </Link>
+                    </p>
+                  </article>
+                </Reveal>
+              );
+            })}
+          </div>
         </div>
 
-        <Reveal className="mt-12">
+        <Reveal className="mt-14">
           <Button href="/leistungen" variant="onLight">
             Mehr zu den Leistungen
           </Button>

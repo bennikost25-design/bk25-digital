@@ -1,6 +1,12 @@
-import { ProjectShowcase as Showcase } from "@/components/projects/ProjectShowcase";
+import { projects } from "@/data/projects";
+import { ProjectPreview } from "@/components/projects/ProjectPreview";
 
-/** Home chapter wrapper — project previews live in components/projects. */
 export function ProjectShowcase() {
-  return <Showcase />;
+  return (
+    <>
+      {projects.map((project) => (
+        <ProjectPreview key={project.id} project={project} />
+      ))}
+    </>
+  );
 }

@@ -20,7 +20,7 @@ export function Footer() {
                 <li key={item.href}>
                   <Link
                     href={item.href}
-                    className="font-[family-name:var(--font-heading)] text-sm text-white/75 no-underline transition-colors hover:text-[var(--color-violet)]"
+                    className="nav-link font-[family-name:var(--font-heading)] text-sm"
                   >
                     {item.label}
                   </Link>

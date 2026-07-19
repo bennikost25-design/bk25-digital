@@ -27,12 +27,12 @@ export function MobileNavigation({ id, open, onClose }: MobileNavigationProps) {
         className="flex h-full flex-col justify-center px-[var(--section-pad-x)] pt-20 pb-10"
         aria-label="Mobile Navigation"
       >
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-1">
           {mainNavigation.map((item) => (
             <li key={item.href}>
               <Link
                 href={item.href}
-                className="block py-3 font-[family-name:var(--font-heading)] text-[clamp(1.75rem,8vw,2.5rem)] text-[var(--color-white)] no-underline transition-colors hover:text-[var(--color-violet)]"
+                className="nav-link-mobile block py-3 font-[family-name:var(--font-heading)] text-[clamp(1.75rem,8vw,2.5rem)]"
                 onClick={onClose}
                 tabIndex={open ? 0 : -1}
               >
