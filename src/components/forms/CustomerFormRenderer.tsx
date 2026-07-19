@@ -12,7 +12,6 @@ import {
 import { clearDraft, loadDraft, saveDraft } from "@/lib/formDraftStorage";
 import {
   buildExportText,
-  submitCustomerForm,
 } from "@/lib/formSubmission";
 import {
   FieldShell,
@@ -39,7 +38,12 @@ function emptyValues(form: CustomerFormDefinition): Values {
   return values;
 }
 
-function validateField(field: FormField, value: unknown): string | null {
+function validateField(
+  field: FormField,
+  value: unknown,
+  unknown = false,
+): string | null {
+  if (unknown) return null;
   if (!field.required) return null;
   if (field.type === "checkbox") {
     return value === true ? null : "Bitte bestätigen.";
@@ -53,12 +57,21 @@ function validateField(field: FormField, value: unknown): string | null {
   return "Dieses Feld ist erforderlich.";
 }
 
-function formatValue(value: unknown): string {
+function formatValue(value: unknown, unknown = false): string {
+  if (unknown) return "Weiß ich noch nicht / Empfehlung gewünscht";
   if (typeof value === "boolean") return value ? "Ja" : "Nein";
   if (Array.isArray(value)) {
     if (value.length === 0) return "—";
     if (typeof value[0] === "object") return JSON.stringify(value, null, 2);
-    return value.join(", ");
+    return value
+      .map((entry) =>
+        entry === "__unknown__"
+          ? "Weiß ich noch nicht / Empfehlung gewünscht"
+          : entry === "__separate__"
+            ? "Wird separat übermittelt"
+            : String(entry),
+      )
+      .join(", ");
   }
   if (value === "__unknown__") return "Weiß ich noch nicht / Empfehlung gewünscht";
   if (value === "__separate__") return "Wird separat übermittelt";
@@ -136,7 +149,8 @@ export function CustomerFormRenderer({
       }
     } else {
       for (const field of step.fields) {
-        const message = validateField(field, values[field.name]);
+        const unknown = Boolean(values[`${field.name}__unknown`]);
+        const message = validateField(field, values[field.name], unknown);
         if (message) nextErrors[field.name] = message;
       }
     }
@@ -171,7 +185,7 @@ export function CustomerFormRenderer({
   };
 
   const exportLocal = async () => {
-    const text = buildExportText(form.title, values);
+    const text = buildExportText(form, values);
     try {
       await navigator.clipboard.writeText(text);
       setStatusMessage(
@@ -183,7 +197,7 @@ export function CustomerFormRenderer({
   };
 
   const downloadLocal = () => {
-    const text = buildExportText(form.title, values);
+    const text = buildExportText(form, values);
     const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -196,23 +210,16 @@ export function CustomerFormRenderer({
     );
   };
 
-  const trySubmit = async () => {
-    const result = await submitCustomerForm({
-      formId: form.id,
-      formTitle: form.title,
-      values,
-      exportedAt: new Date().toISOString(),
-    });
-    setStatusMessage(result.message);
-  };
-
   const summaryEntries = useMemo(() => {
     const entries: { label: string; value: string }[] = [];
     for (const s of form.steps) {
       for (const field of s.fields) {
         entries.push({
           label: field.label,
-          value: formatValue(values[field.name]),
+          value: formatValue(
+            values[field.name],
+            Boolean(values[`${field.name}__unknown`]),
+          ),
         });
       }
     }
@@ -222,7 +229,7 @@ export function CustomerFormRenderer({
         value: corrections
           .map(
             (item, i) =>
-              `${i + 1}. [${item.category}] ${item.page} / ${item.section}: ${item.desiredChange}`,
+              `${i + 1}. ${item.page || "—"} / ${item.section || "—"} (${item.category || "—"}): ${item.desiredChange || "—"}`,
           )
           .join("\n"),
       });
@@ -254,8 +261,15 @@ export function CustomerFormRenderer({
               key={field.id}
               field={field}
               value={values[field.name]}
+              unknown={Boolean(values[`${field.name}__unknown`])}
               error={errors[field.name]}
               onChange={(value) => setValue(field.name, value)}
+              onUnknownChange={(checked) => {
+                setValue(`${field.name}__unknown`, checked);
+                if (checked && (field.type === "text" || field.type === "textarea" || field.type === "email" || field.type === "tel")) {
+                  setValue(field.name, "");
+                }
+              }}
             />
           ))}
         </div>
@@ -300,10 +314,10 @@ export function CustomerFormRenderer({
             </button>
             <button
               type="button"
-              className="min-h-12 rounded-sm border border-black/20 px-5 text-sm font-[family-name:var(--font-heading)] text-muted"
-              onClick={trySubmit}
+              className="min-h-12 cursor-not-allowed rounded-sm border border-black/15 px-5 text-sm font-[family-name:var(--font-heading)] text-muted"
+              disabled
             >
-              Übermittlung prüfen
+              Direkte Übermittlung noch nicht verfügbar
             </button>
           </div>
         </div>
@@ -348,22 +362,47 @@ export function CustomerFormRenderer({
 function FormFieldControl({
   field,
   value,
+  unknown = false,
   error,
   onChange,
+  onUnknownChange,
 }: {
   field: FormField;
   value: unknown;
+  unknown?: boolean;
   error?: string;
   onChange: (value: unknown) => void;
+  onUnknownChange?: (checked: boolean) => void;
 }) {
   const describedBy = error ? `${field.id}-error` : undefined;
   const options = [...(field.options || [])];
-  if (field.allowUnknown) {
+  if (
+    field.allowUnknown &&
+    field.type === "select" &&
+    !options.some((option) => option.value === "__unknown__")
+  ) {
     options.push({
       value: "__unknown__",
       label: field.unknownLabel || "Weiß ich noch nicht",
     });
   }
+
+  const unknownControl =
+    field.allowUnknown &&
+    (field.type === "text" ||
+      field.type === "textarea" ||
+      field.type === "email" ||
+      field.type === "tel") ? (
+      <label className="mt-2 flex items-start gap-3 text-sm text-muted">
+        <input
+          type="checkbox"
+          className="mt-0.5 h-5 w-5 accent-[var(--color-violet-dark)]"
+          checked={unknown}
+          onChange={(e) => onUnknownChange?.(e.target.checked)}
+        />
+        <span>{field.unknownLabel || "Weiß ich noch nicht"}</span>
+      </label>
+    ) : null;
 
   if (field.type === "textarea") {
     return (
@@ -379,12 +418,14 @@ function FormFieldControl({
           name={field.name}
           rows={5}
           className={fieldControlClass}
-          value={String(value ?? "")}
+          value={unknown ? "" : String(value ?? "")}
           placeholder={field.placeholder}
+          disabled={unknown}
           aria-invalid={Boolean(error)}
           aria-describedby={describedBy}
           onChange={(e) => onChange(e.target.value)}
         />
+        {unknownControl}
       </FieldShell>
     );
   }
@@ -504,21 +545,14 @@ function FormFieldControl({
         name={field.name}
         type={field.type === "email" || field.type === "tel" ? field.type : "text"}
         className={fieldControlClass}
-        value={String(value ?? "")}
+        value={unknown ? "" : String(value ?? "")}
         placeholder={field.placeholder}
+        disabled={unknown}
         aria-invalid={Boolean(error)}
         aria-describedby={describedBy}
         onChange={(e) => onChange(e.target.value)}
       />
-      {field.allowUnknown ? (
-        <button
-          type="button"
-          className="mt-2 text-sm text-violet-dark underline-offset-2 hover:underline"
-          onClick={() => onChange("__unknown__")}
-        >
-          {field.unknownLabel || "Weiß ich noch nicht"}
-        </button>
-      ) : null}
+      {unknownControl}
     </FieldShell>
   );
 }

@@ -5,7 +5,6 @@ export type ProjectTheme = {
   accentSoft: string;
   text: string;
   muted: string;
-  mockupChrome: string;
 };
 
 export type ProjectFeature = {
@@ -18,6 +17,10 @@ export type ProjectStoryFrame = {
   src: string;
   alt: string;
   caption: string;
+  /** Scene headline shown during sticky storytelling */
+  sceneLabel: string;
+  /** Short line under the scene label */
+  sceneLine: string;
 };
 
 export type Project = {
@@ -38,6 +41,8 @@ export type Project = {
   pageScope: string;
   specialAreas: string[];
   storyFrames: ProjectStoryFrame[];
+  /** Sticky track height on desktop (svh units as CSS value) */
+  storyTrackHeight: string;
 };
 
 export const projects: Project[] = [
@@ -65,7 +70,7 @@ export const projects: Project[] = [
       {
         title: "Karriere- und Bewerbungsbereich",
         description:
-          "Zusätzliche Tiefe für Bewerberinnen und Bewerber – typisch für den Umfang des Komplettpakets.",
+          "Zusätzlicher Raum für Arbeitgeberprofil und Bewerberführung.",
       },
     ],
     theme: {
@@ -75,7 +80,6 @@ export const projects: Project[] = [
       accentSoft: "#C4A574",
       text: "#1A1612",
       muted: "#6B5E4F",
-      mockupChrome: "#2C2419",
     },
     liveUrl: null,
     href: "/projekte/nahwerk-pflege",
@@ -91,24 +95,33 @@ export const projects: Project[] = [
       "Bereiche für Angehörige und Bewerber mit eigener Priorität",
       "Ruhige, großzügige Bild- und Textflächen",
     ],
+    storyTrackHeight: "320svh",
     storyFrames: [
       {
         id: "nahwerk-startseite",
         src: "/images/projects/bk25-nahwerk-startseite.jpg",
         alt: "Startseite des Konzeptprojekts Nahwerk Pflege in einer warmen, ruhigen Designwelt",
         caption: "Startseite",
+        sceneLabel: "01 — Individuelle Startseite",
+        sceneLine: "Eine eigene warme Designwelt statt einer austauschbaren Vorlage.",
       },
       {
         id: "nahwerk-leistungen",
         src: "/images/projects/bk25-nahwerk-leistungen.jpg",
         alt: "Ausführliche Leistungsseite des Konzeptprojekts Nahwerk Pflege",
         caption: "Leistungen",
+        sceneLabel: "02 — Verständliche Leistungen",
+        sceneLine:
+          "Mehr inhaltliche Tiefe und klare Orientierung für unterschiedliche Pflegebedarfe.",
       },
       {
         id: "nahwerk-karriere",
         src: "/images/projects/bk25-nahwerk-karriere.jpg",
         alt: "Karrierebereich des Konzeptprojekts Nahwerk Pflege",
         caption: "Karriere",
+        sceneLabel: "03 — Eigener Karrierebereich",
+        sceneLine:
+          "Das Komplettpaket bietet zusätzlichen Raum für Arbeitgeberprofil und Bewerberführung.",
       },
     ],
   },
@@ -126,12 +139,12 @@ export const projects: Project[] = [
       {
         title: "Klarer Einstieg",
         description:
-          "Orientierung und Vertrauen stehen zuerst – ohne überladenen Umfang.",
+          "Die wichtigsten Zielgruppen und Kontaktwege werden direkt priorisiert.",
       },
       {
-        title: "Konzentrierte Inhaltsstruktur",
+        title: "Konzentrierter Umfang",
         description:
-          "Wesentliche Leistungen und Kontaktwege sind schnell erreichbar.",
+          "Wesentliche Leistungen klar und ohne unnötige Seitenfülle.",
       },
       {
         title: "Eigenständige Designwelt",
@@ -146,7 +159,6 @@ export const projects: Project[] = [
       accentSoft: "#4A9AAB",
       text: "#0F2A32",
       muted: "#4A6B75",
-      mockupChrome: "#143842",
     },
     liveUrl: "https://wellenweg-pflege-demo.vercel.app",
     href: "/projekte/wellenweg-pflege",
@@ -162,18 +174,25 @@ export const projects: Project[] = [
       "Schnelle Orientierung zu Angebot und Kontakt",
       "Demo-fähige Umsetzung als lebender Prototyp",
     ],
+    storyTrackHeight: "225svh",
     storyFrames: [
       {
         id: "wellenweg-startseite",
         src: "/images/projects/bk25-wellenweg-startseite.jpg",
         alt: "Startseite des Konzeptprojekts Wellenweg Pflege in blau-türkiser Gestaltung",
         caption: "Startseite",
+        sceneLabel: "01 — Klarer Einstieg",
+        sceneLine:
+          "Die wichtigsten Zielgruppen und Kontaktwege werden direkt priorisiert.",
       },
       {
         id: "wellenweg-leistungen",
         src: "/images/projects/bk25-wellenweg-leistungen.jpg",
         alt: "Fokussierte Leistungsseite des Konzeptprojekts Wellenweg Pflege",
         caption: "Leistungen",
+        sceneLabel: "02 — Konzentrierter Umfang",
+        sceneLine:
+          "Das Basispaket zeigt die wesentlichen Leistungen klar und ohne unnötige Seitenfülle.",
       },
     ],
   },

@@ -1,5 +1,5 @@
 import type { Project } from "@/data/projects";
-import { ProjectStorySection } from "./ProjectStorySection";
+import { ProjectExperience } from "./ProjectExperience";
 
 type ProjectPreviewProps = {
   project: Project;
@@ -7,7 +7,7 @@ type ProjectPreviewProps = {
 
 export function ProjectPreview({ project }: ProjectPreviewProps) {
   return (
-    <ProjectStorySection
+    <ProjectExperience
       project={project}
       sectionId={project.id === "nahwerk" ? "projekte" : undefined}
     />

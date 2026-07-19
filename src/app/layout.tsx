@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
+import { SiteChrome } from "@/components/layout/SiteChrome";
 import { fontAccent, fontBody, fontHeading } from "@/lib/fonts";
 import { siteConfig, siteMetadata } from "@/data/site";
 import "./globals.css";
@@ -28,11 +27,7 @@ export default function RootLayout({
         <a href="#main-content" className="skip-link">
           Zum Hauptinhalt springen
         </a>
-        <Header />
-        <main id="main-content" className="flex-1">
-          {children}
-        </main>
-        <Footer />
+        <SiteChrome>{children}</SiteChrome>
       </body>
     </html>
   );

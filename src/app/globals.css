@@ -69,7 +69,6 @@ body {
   line-height: 1.65;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  overflow-x: clip;
 }
 
 h1,
@@ -313,110 +312,150 @@ a.nav-link-mobile:focus-visible {
   background: var(--color-violet);
 }
 
-/* Project story stages — driven by --story-progress (0–1) */
-.project-story {
-  --story-progress: 0;
+/* ============================================================
+   Project sticky scroll chapters
+   ============================================================ */
+.project-experience--nahwerk {
+  background: color-mix(
+    in srgb,
+    var(--project-base, #f5f0e8) calc(100% - var(--bg-darken, 0) * 42%),
+    #1a1612 calc(var(--bg-darken, 0) * 42%)
+  );
+  transition: background-color 0.05s linear;
 }
 
-.story-stage {
+.project-experience--wellenweg {
+  background: var(--project-base, #e8f2f5);
+}
+
+.project-scroll-track {
+  /* Must not clip — sticky needs visible overflow on ancestors */
+  overflow: visible;
+}
+
+.project-sticky-stage {
+  width: 100%;
+}
+
+.project-stage-canvas {
   isolation: isolate;
+  min-height: min(56svh, 34rem);
 }
 
-.story-frame {
-  width: min(100%, 34rem);
-  border-radius: 0.35rem;
-  will-change: transform;
+.project-scene {
+  margin: 0;
 }
 
-.story-frame--motion {
-  transition: none;
-}
-
-/* Nahwerk — three layered frames */
-.story-frame--layered-0 {
-  left: 0;
-  top: 0;
+.project-scene--base {
+  position: relative;
   z-index: 1;
-  width: min(100%, 36rem);
+  transform: scale(calc(1 - var(--reveal-1, 0) * 0.04))
+    translate3d(0, calc(var(--reveal-1, 0) * -2%), 0);
+  transform-origin: center center;
 }
 
-.story-frame--layered-0.story-frame--motion {
-  transform: translate3d(
-      calc(var(--story-progress) * -6%),
-      calc(var(--story-progress) * -4%),
-      0
-    )
-    rotate(calc(var(--story-progress) * -1.2deg))
-    scale(calc(1 - var(--story-progress) * 0.04));
-}
-
-.story-frame--layered-1 {
-  left: 12%;
-  top: 18%;
+.project-scene--reveal-1,
+.project-scene--reveal-2 {
+  position: absolute;
+  inset: 0;
   z-index: 2;
-  width: min(88%, 30rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.story-frame--layered-1.story-frame--motion {
-  transform: translate3d(
-      calc(var(--story-progress) * 8%),
-      calc(var(--story-progress) * -10%),
-      0
-    )
-    rotate(calc(-1.5deg + var(--story-progress) * 2deg));
-  opacity: calc(0.35 + var(--story-progress) * 0.65);
-}
-
-.story-frame--layered-2 {
-  left: 28%;
-  top: 38%;
+.project-scene--reveal-2 {
   z-index: 3;
-  width: min(78%, 26rem);
 }
 
-.story-frame--layered-2.story-frame--motion {
-  transform: translate3d(
-      calc(var(--story-progress) * 14%),
-      calc(var(--story-progress) * -18%),
-      0
-    )
-    rotate(calc(2deg - var(--story-progress) * 1deg));
-  opacity: calc(0.15 + var(--story-progress) * 0.85);
+/* Nahwerk: diagonal slash reveal (fully opaque) */
+.project-scene--slash.project-scene--reveal-1 {
+  clip-path: polygon(
+    calc(var(--reveal-1) * 130% - 28%) -8%,
+    130% -8%,
+    130% 108%,
+    calc(var(--reveal-1) * 130% - 72%) 108%
+  );
 }
 
-/* Wellenweg — two-frame pair, quieter motion */
-.story-frame--pair-0 {
-  left: 0;
-  top: 4%;
-  z-index: 1;
-  width: min(100%, 34rem);
+.project-scene--slash.project-scene--reveal-2 {
+  clip-path: polygon(
+    calc(var(--reveal-2) * 130% - 28%) -8%,
+    130% -8%,
+    130% 108%,
+    calc(var(--reveal-2) * 130% - 72%) 108%
+  );
 }
 
-.story-frame--pair-0.story-frame--motion {
-  transform: translate3d(0, calc(var(--story-progress) * -6%), 0)
-    rotate(calc(-1deg + var(--story-progress) * 0.8deg));
+/* Wellenweg: horizontal wipe */
+.project-scene--wave.project-scene--reveal-1 {
+  clip-path: inset(0 0 0 calc((1 - var(--reveal-1)) * 100%));
 }
 
-.story-frame--pair-1 {
-  left: 18%;
-  top: 28%;
-  z-index: 2;
-  width: min(86%, 28rem);
+.project-slash-wipe {
+  pointer-events: none;
+  position: absolute;
+  top: -12%;
+  bottom: -12%;
+  left: calc(var(--wipe-progress, 0) * 100%);
+  z-index: 12;
+  width: 0.28rem;
+  background: var(--color-violet);
+  opacity: calc(min(1, var(--wipe-progress, 0) * 8) * (1 - var(--wipe-progress, 0) * 0.25));
+  transform: translateX(-50%) skewX(var(--slash-angle));
+  box-shadow: 0 0 24px color-mix(in srgb, var(--color-violet) 35%, transparent);
 }
 
-.story-frame--pair-1.story-frame--motion {
-  transform: translate3d(
-      calc(var(--story-progress) * 6%),
-      calc(var(--story-progress) * -12%),
-      0
-    )
-    rotate(calc(1.5deg - var(--story-progress) * 0.5deg));
-  opacity: calc(0.4 + var(--story-progress) * 0.6);
+.project-wave-wipe {
+  pointer-events: none;
+  position: absolute;
+  inset-block: 8%;
+  left: calc(var(--wipe-progress, 0) * 100%);
+  z-index: 12;
+  width: 0.22rem;
+  background: var(--project-accent-soft, #4a9aab);
+  opacity: calc(min(1, var(--wipe-progress, 0) * 8) * (1 - var(--wipe-progress, 0) * 0.3));
+  transform: translateX(-50%);
+}
+
+.project-scene-caption {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.project-scene-caption--0 {
+  opacity: var(--caption-0, 1);
+}
+.project-scene-caption--1 {
+  opacity: var(--caption-1, 0);
+}
+.project-scene-caption--2 {
+  opacity: var(--caption-2, 0);
+}
+
+.project-experience--nahwerk .project-scene-caption {
+  color: color-mix(
+    in srgb,
+    var(--project-text) calc(100% - var(--bg-darken) * 70%),
+    #ffffff calc(var(--bg-darken) * 70%)
+  );
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .story-frame--motion {
-    transform: none !important;
-    opacity: 1 !important;
+  .project-scene--base {
+    transform: none;
+  }
+
+  .project-scene--slash,
+  .project-scene--wave {
+    clip-path: none !important;
+  }
+
+  .project-slash-wipe,
+  .project-wave-wipe {
+    display: none;
   }
 }

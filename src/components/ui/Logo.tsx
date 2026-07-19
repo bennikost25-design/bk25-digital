@@ -5,7 +5,8 @@ import { SlashMark } from "./SlashMark";
 type LogoProps = {
   variant?: "compact" | "full";
   tone?: "light" | "dark";
-  href?: string;
+  /** Pass null to render without a link (e.g. internal forms) */
+  href?: string | null;
   className?: string;
 };
 
