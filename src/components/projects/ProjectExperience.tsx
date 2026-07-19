@@ -53,13 +53,13 @@ export function ProjectExperience({
       style={
         {
           color: project.theme.text,
+          backgroundColor: project.theme.background,
           "--project-accent": project.theme.accent,
           "--project-accent-soft": project.theme.accentSoft,
           "--project-alt": project.theme.backgroundAlt,
           "--project-muted": project.theme.muted,
           "--project-base": project.theme.background,
           "--project-text": project.theme.text,
-          ...(!isNahwerk ? { backgroundColor: project.theme.background } : {}),
         } as React.CSSProperties
       }
       aria-labelledby={`project-${project.id}-title`}
@@ -71,6 +71,7 @@ export function ProjectExperience({
           ref={trackRef}
           className="project-scroll-track relative"
           style={{ height: project.storyTrackHeight }}
+          data-active-scene="0"
         >
           <ProjectStickyStage
             frames={project.storyFrames}
@@ -169,25 +170,29 @@ function ProjectStickyStage({
           )}
         </div>
 
-        <div className="pointer-events-none absolute inset-x-0 bottom-6 z-30 px-[var(--section-pad-x)] sm:bottom-8">
-          <div className="relative mx-auto min-h-[4.5rem] max-w-[40rem]">
-            {frames.map((frame, index) => (
-              <div
-                key={`caption-${frame.id}`}
-                className={cn("project-scene-caption", `project-scene-caption--${index}`)}
+        <div className="project-captions">
+          {frames.map((frame, index) => (
+            <div
+              key={`caption-${frame.id}`}
+              className={cn(
+                "project-scene-caption",
+                `project-scene-caption--${index}`,
+              )}
+            >
+              <p
+                className="font-[family-name:var(--font-heading)] text-xs uppercase tracking-[0.2em]"
+                style={{ color: "var(--project-accent)" }}
               >
-                <p className="font-[family-name:var(--font-heading)] text-xs uppercase tracking-[0.2em] text-[var(--color-violet)]">
-                  {frame.sceneLabel}
-                </p>
-                <p
-                  className="mt-2 text-sm leading-relaxed sm:text-base"
-                  style={{ color: "var(--project-text)" }}
-                >
-                  {frame.sceneLine}
-                </p>
-              </div>
-            ))}
-          </div>
+                {frame.sceneLabel}
+              </p>
+              <p
+                className="mt-2 text-sm leading-relaxed sm:text-base"
+                style={{ color: "var(--project-text)" }}
+              >
+                {frame.sceneLine}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
     </div>

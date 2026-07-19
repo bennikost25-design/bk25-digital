@@ -316,12 +316,7 @@ a.nav-link-mobile:focus-visible {
    Project sticky scroll chapters
    ============================================================ */
 .project-experience--nahwerk {
-  background: color-mix(
-    in srgb,
-    var(--project-base, #f5f0e8) calc(100% - var(--bg-darken, 0) * 42%),
-    #1a1612 calc(var(--bg-darken, 0) * 42%)
-  );
-  transition: background-color 0.05s linear;
+  background: var(--project-base, #f5f0e8);
 }
 
 .project-experience--wellenweg {
@@ -368,54 +363,69 @@ a.nav-link-mobile:focus-visible {
   z-index: 3;
 }
 
-/* Nahwerk: diagonal slash reveal (fully opaque) */
+/* Nahwerk: diagonal slash reveal — reveal 0 = hidden, reveal 1 = fully visible */
+.project-scene--slash {
+  --scene-reveal: 0;
+}
+
 .project-scene--slash.project-scene--reveal-1 {
-  clip-path: polygon(
-    calc(var(--reveal-1) * 130% - 28%) -8%,
-    130% -8%,
-    130% 108%,
-    calc(var(--reveal-1) * 130% - 72%) 108%
-  );
+  --scene-reveal: var(--reveal-1, 0);
 }
 
 .project-scene--slash.project-scene--reveal-2 {
+  --scene-reveal: var(--reveal-2, 0);
+}
+
+.project-scene--slash.project-scene--reveal-1,
+.project-scene--slash.project-scene--reveal-2 {
+  /* Kill residual edge pixels exactly at reveal 0 */
+  opacity: min(1, calc(var(--scene-reveal) * 80));
   clip-path: polygon(
-    calc(var(--reveal-2) * 130% - 28%) -8%,
-    130% -8%,
-    130% 108%,
-    calc(var(--reveal-2) * 130% - 72%) 108%
+    calc(120% - var(--scene-reveal) * 120%) -8%,
+    120% -8%,
+    120% 108%,
+    calc(150% - var(--scene-reveal) * 150%) 108%
   );
 }
 
-/* Wellenweg: horizontal wipe */
+/* Wellenweg: horizontal wipe from the right */
 .project-scene--wave.project-scene--reveal-1 {
-  clip-path: inset(0 0 0 calc((1 - var(--reveal-1)) * 100%));
+  opacity: min(1, calc(var(--reveal-1, 0) * 80));
+  clip-path: inset(0 0 0 calc((1 - var(--reveal-1, 0)) * 100%));
+}
+
+.project-slash-wipe,
+.project-wave-wipe {
+  pointer-events: none;
+  position: absolute;
+  z-index: 12;
+  left: calc(var(--wipe-position, 1) * 100%);
+  opacity: var(--wipe-opacity, 0);
+  transform: translateX(-50%);
 }
 
 .project-slash-wipe {
-  pointer-events: none;
-  position: absolute;
   top: -12%;
   bottom: -12%;
-  left: calc(var(--wipe-progress, 0) * 100%);
-  z-index: 12;
   width: 0.28rem;
   background: var(--color-violet);
-  opacity: calc(min(1, var(--wipe-progress, 0) * 8) * (1 - var(--wipe-progress, 0) * 0.25));
   transform: translateX(-50%) skewX(var(--slash-angle));
   box-shadow: 0 0 24px color-mix(in srgb, var(--color-violet) 35%, transparent);
 }
 
 .project-wave-wipe {
-  pointer-events: none;
-  position: absolute;
   inset-block: 8%;
-  left: calc(var(--wipe-progress, 0) * 100%);
-  z-index: 12;
   width: 0.22rem;
   background: var(--project-accent-soft, #4a9aab);
-  opacity: calc(min(1, var(--wipe-progress, 0) * 8) * (1 - var(--wipe-progress, 0) * 0.3));
-  transform: translateX(-50%);
+}
+
+.project-captions {
+  pointer-events: none;
+  position: absolute;
+  z-index: 30;
+  left: var(--section-pad-x);
+  bottom: clamp(1rem, 2vw, 2rem);
+  width: min(calc(100% - 2 * var(--section-pad-x)), 38rem);
 }
 
 .project-scene-caption {
@@ -423,25 +433,25 @@ a.nav-link-mobile:focus-visible {
   inset-inline: 0;
   bottom: 0;
   opacity: 0;
-  pointer-events: none;
+  transform: translateY(0.5rem);
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+  padding: 0.85rem 1rem;
+  background: color-mix(in srgb, var(--project-base, #fff) 92%, transparent);
+  border-left: 3px solid var(--color-violet);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
 }
 
-.project-scene-caption--0 {
-  opacity: var(--caption-0, 1);
-}
-.project-scene-caption--1 {
-  opacity: var(--caption-1, 0);
-}
-.project-scene-caption--2 {
-  opacity: var(--caption-2, 0);
+.project-experience--wellenweg .project-scene-caption {
+  border-left-color: var(--project-accent, #1a6b7a);
 }
 
-.project-experience--nahwerk .project-scene-caption {
-  color: color-mix(
-    in srgb,
-    var(--project-text) calc(100% - var(--bg-darken) * 70%),
-    #ffffff calc(var(--bg-darken) * 70%)
-  );
+.project-scroll-track[data-active-scene="0"] .project-scene-caption--0,
+.project-scroll-track[data-active-scene="1"] .project-scene-caption--1,
+.project-scroll-track[data-active-scene="2"] .project-scene-caption--2 {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -452,10 +462,15 @@ a.nav-link-mobile:focus-visible {
   .project-scene--slash,
   .project-scene--wave {
     clip-path: none !important;
+    opacity: 1 !important;
   }
 
   .project-slash-wipe,
   .project-wave-wipe {
     display: none;
+  }
+
+  .project-scene-caption {
+    transition: none;
   }
 }
