@@ -19,8 +19,12 @@ export type ProjectStoryFrame = {
   caption: string;
   /** Scene headline shown during sticky storytelling */
   sceneLabel: string;
-  /** Short line under the scene label */
+  /** Short line describing what the screenshot shows */
   sceneLine: string;
+  /** Package benefit label, e.g. „Vorteil im Komplettpaket“ */
+  benefitLabel: string;
+  benefitTitle: string;
+  benefitText: string;
 };
 
 export type Project = {
@@ -58,19 +62,16 @@ export const projects: Project[] = [
       "Ein umfangreicher digitaler Auftritt mit eigener visueller Identität, klarer Nutzerführung und einer emotionaleren Darstellung moderner Pflege.",
     features: [
       {
-        title: "Individuell ausgearbeitete Startseite",
-        description:
-          "Eigene visuelle Welt statt Vorlage – warm, ruhig und auf den ersten Blick erkennbar.",
+        title: "Individuelle Startseite",
+        description: "",
       },
       {
         title: "Ausführliche Leistungsdarstellung",
-        description:
-          "Angebote werden verständlich gegliedert, ohne Besucher zu überfordern.",
+        description: "",
       },
       {
-        title: "Karriere- und Bewerbungsbereich",
-        description:
-          "Zusätzlicher Raum für Arbeitgeberprofil und Bewerberführung.",
+        title: "Eigener Karrierebereich",
+        description: "",
       },
     ],
     theme: {
@@ -103,7 +104,12 @@ export const projects: Project[] = [
         alt: "Startseite des Konzeptprojekts Nahwerk Pflege in einer warmen, ruhigen Designwelt",
         caption: "Startseite",
         sceneLabel: "01 — Individuelle Startseite",
-        sceneLine: "Eine eigene warme Designwelt statt einer austauschbaren Vorlage.",
+        sceneLine:
+          "Warmer Einstieg mit klarer Hauptaussage, persönlicher Bildsprache und gezielten Handlungsaufforderungen.",
+        benefitLabel: "Vorteil im Komplettpaket",
+        benefitTitle: "Eine Startseite mit eigener Identität",
+        benefitText:
+          "Gestaltung, Inhalte und Nutzerführung werden auf die Einrichtung abgestimmt. So entsteht kein ausgetauschtes Standardlayout, sondern ein eigenständiger erster Eindruck.",
       },
       {
         id: "nahwerk-leistungen",
@@ -112,7 +118,11 @@ export const projects: Project[] = [
         caption: "Leistungen",
         sceneLabel: "02 — Verständliche Leistungen",
         sceneLine:
-          "Mehr inhaltliche Tiefe und klare Orientierung für unterschiedliche Pflegebedarfe.",
+          "Gegliederte Pflegeleistungen mit zusätzlichen Erklärungen – Orientierung für Pflegebedürftige und Angehörige.",
+        benefitLabel: "Vorteil im Komplettpaket",
+        benefitTitle: "Mehr Raum für erklärungsbedürftige Angebote",
+        benefitText:
+          "Leistungen können ausführlicher gegliedert und verständlich erklärt werden. Das hilft Besuchern, schneller einzuordnen, welches Angebot zu ihrer Situation passt.",
       },
       {
         id: "nahwerk-karriere",
@@ -121,7 +131,11 @@ export const projects: Project[] = [
         caption: "Karriere",
         sceneLabel: "03 — Eigener Karrierebereich",
         sceneLine:
-          "Das Komplettpaket bietet zusätzlichen Raum für Arbeitgeberprofil und Bewerberführung.",
+          "Arbeitgeberdarstellung mit Informationen für Bewerber, Arbeitsbedingungen und kurzer Bewerbungsführung.",
+        benefitLabel: "Vorteil im Komplettpaket",
+        benefitTitle: "Ein eigener Bereich für neue Mitarbeitende",
+        benefitText:
+          "Neben Kunden und Angehörigen können auch Bewerber gezielt angesprochen werden. Der zusätzliche Karrierebereich schafft Platz für Arbeitgeberprofil und einen verständlichen Bewerbungsweg.",
       },
     ],
   },
@@ -138,18 +152,15 @@ export const projects: Project[] = [
     features: [
       {
         title: "Klarer Einstieg",
-        description:
-          "Die wichtigsten Zielgruppen und Kontaktwege werden direkt priorisiert.",
+        description: "",
       },
       {
-        title: "Konzentrierter Umfang",
-        description:
-          "Wesentliche Leistungen klar und ohne unnötige Seitenfülle.",
+        title: "Kompakte Leistungsdarstellung",
+        description: "",
       },
       {
-        title: "Eigenständige Designwelt",
-        description:
-          "Blau-türkise Gestaltung mit klarer Haltung – fokussiert, nicht minderwertig.",
+        title: "Individuelle Gestaltung",
+        description: "",
       },
     ],
     theme: {
@@ -183,7 +194,11 @@ export const projects: Project[] = [
         caption: "Startseite",
         sceneLabel: "01 — Klarer Einstieg",
         sceneLine:
-          "Die wichtigsten Zielgruppen und Kontaktwege werden direkt priorisiert.",
+          "Klare Hauptaussage, direkte Orientierung nach Bedarf und sichtbare Kontaktwege in individueller blau-türkiser Gestaltung.",
+        benefitLabel: "Vorteil im Basispaket",
+        benefitTitle: "Die wichtigsten Inhalte sofort im Blick",
+        benefitText:
+          "Der kompakte Aufbau konzentriert sich auf die Fragen und Kontaktwege, die für Besucher zuerst wichtig sind – individuell gestaltet und ohne unnötige Seitenfülle.",
       },
       {
         id: "wellenweg-leistungen",
@@ -192,7 +207,11 @@ export const projects: Project[] = [
         caption: "Leistungen",
         sceneLabel: "02 — Konzentrierter Umfang",
         sceneLine:
-          "Das Basispaket zeigt die wesentlichen Leistungen klar und ohne unnötige Seitenfülle.",
+          "Wesentliche Leistungsbereiche in verständlicher Gruppierung und kompakter Informationsstruktur.",
+        benefitLabel: "Vorteil im Basispaket",
+        benefitTitle: "Professionelle Orientierung mit klarem Umfang",
+        benefitText:
+          "Die zentralen Leistungen werden verständlich dargestellt, ohne den Auftritt unnötig zu vergrößern. So bleibt die Website übersichtlich und professionell.",
       },
     ],
   },

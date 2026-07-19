@@ -126,6 +126,29 @@ function ProjectStoryIntro({ project }: { project: Project }) {
   );
 }
 
+function SceneBenefitContent({
+  frame,
+  headingLevel = "h3",
+}: {
+  frame: ProjectStoryFrame;
+  headingLevel?: "h3" | "p";
+}) {
+  const HeadingTag = headingLevel;
+
+  return (
+    <>
+      <div className="project-scene-info-mark" aria-hidden="true" />
+      <p className="project-scene-info-label">{frame.sceneLabel}</p>
+      <p className="project-scene-info-line">{frame.sceneLine}</p>
+      <p className="project-scene-benefit-label">{frame.benefitLabel}</p>
+      <HeadingTag className="project-scene-benefit-title">
+        {frame.benefitTitle}
+      </HeadingTag>
+      <p className="project-scene-benefit-text">{frame.benefitText}</p>
+    </>
+  );
+}
+
 function ProjectStickyStage({
   frames,
   variant,
@@ -150,7 +173,7 @@ function ProjectStickyStage({
                     : "project-scene--wave"),
               )}
             >
-              <div className="project-scene-media relative mx-auto aspect-[16/10] w-full max-h-[calc(100svh-var(--header-height)-7.5rem)] overflow-hidden shadow-[0_28px_80px_rgba(0,0,0,0.18)]">
+              <div className="project-scene-media relative mx-auto aspect-[16/10] w-full max-h-[calc(100svh-var(--header-height)-11rem)] overflow-hidden shadow-[0_28px_80px_rgba(0,0,0,0.18)]">
                 <Image
                   src={frame.src}
                   alt={frame.alt}
@@ -174,23 +197,14 @@ function ProjectStickyStage({
           {frames.map((frame, index) => (
             <div
               key={`caption-${frame.id}`}
+              data-scene-panel={String(index)}
               className={cn(
                 "project-scene-caption",
                 `project-scene-caption--${index}`,
               )}
+              aria-hidden={index === 0 ? undefined : true}
             >
-              <p
-                className="font-[family-name:var(--font-heading)] text-xs uppercase tracking-[0.2em]"
-                style={{ color: "var(--project-accent)" }}
-              >
-                {frame.sceneLabel}
-              </p>
-              <p
-                className="mt-2 text-sm leading-relaxed sm:text-base"
-                style={{ color: "var(--project-text)" }}
-              >
-                {frame.sceneLine}
-              </p>
+              <SceneBenefitContent frame={frame} headingLevel="h3" />
             </div>
           ))}
         </div>
@@ -201,7 +215,7 @@ function ProjectStickyStage({
 
 function ProjectStaticScenes({ frames }: { frames: ProjectStoryFrame[] }) {
   return (
-    <div className="space-y-10 px-[var(--section-pad-x)] pb-6 sm:space-y-12">
+    <div className="space-y-12 px-[var(--section-pad-x)] pb-6 sm:space-y-14">
       {frames.map((frame) => (
         <figure key={frame.id} className="mx-auto w-full max-w-[74rem]">
           <div className="relative aspect-[16/10] w-full overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.14)]">
@@ -213,16 +227,8 @@ function ProjectStaticScenes({ frames }: { frames: ProjectStoryFrame[] }) {
               className="object-contain object-top"
             />
           </div>
-          <figcaption className="mt-4 max-w-xl">
-            <p className="font-[family-name:var(--font-heading)] text-xs uppercase tracking-[0.2em] text-[var(--color-violet-dark)]">
-              {frame.sceneLabel}
-            </p>
-            <p
-              className="mt-2 text-sm leading-relaxed sm:text-base"
-              style={{ color: "var(--project-muted)" }}
-            >
-              {frame.sceneLine}
-            </p>
+          <figcaption className="project-scene-info project-scene-info--static mt-5 max-w-[32rem]">
+            <SceneBenefitContent frame={frame} headingLevel="h3" />
           </figcaption>
         </figure>
       ))}
@@ -249,18 +255,11 @@ function ProjectStorySummary({ project }: { project: Project }) {
           {project.features.slice(0, 3).map((feature) => (
             <li key={feature.title} className="text-sm leading-relaxed">
               <span
-                className="mb-2 block h-3 w-1 skew-x-[var(--slash-angle)]"
-                style={{ backgroundColor: project.theme.accent }}
+                className="mb-2 block h-3 w-1 skew-x-[var(--slash-angle)] bg-[var(--color-violet)]"
                 aria-hidden="true"
               />
               <span className="font-[family-name:var(--font-heading)] font-medium">
                 {feature.title}
-              </span>
-              <span
-                className="mt-1 block"
-                style={{ color: project.theme.muted }}
-              >
-                {feature.description}
               </span>
             </li>
           ))}

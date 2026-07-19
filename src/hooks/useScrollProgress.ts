@@ -17,6 +17,22 @@ function smoothstep(edge0: number, edge1: number, x: number) {
   return t * t * (3 - 2 * t);
 }
 
+function syncActiveScene(node: HTMLElement, activeScene: number) {
+  const next = String(activeScene);
+  if (node.dataset.activeScene === next) return;
+
+  node.dataset.activeScene = next;
+  node.querySelectorAll<HTMLElement>("[data-scene-panel]").forEach((panel) => {
+    const active = panel.dataset.scenePanel === next;
+    panel.setAttribute("aria-hidden", active ? "false" : "true");
+    if (active) {
+      panel.removeAttribute("inert");
+    } else {
+      panel.setAttribute("inert", "");
+    }
+  });
+}
+
 /**
  * Writes scroll progress onto the track via CSS variables + data-active-scene.
  * No React state updates per scroll tick.
@@ -37,7 +53,8 @@ export function useScrollProgress<T extends HTMLElement = HTMLElement>(
       node.style.setProperty("--reveal-2", "0");
       node.style.setProperty("--wipe-position", "1");
       node.style.setProperty("--wipe-opacity", "0");
-      node.dataset.activeScene = "0";
+      node.dataset.activeScene = "";
+      syncActiveScene(node, 0);
     };
 
     if (!enabled) {
@@ -72,9 +89,7 @@ export function useScrollProgress<T extends HTMLElement = HTMLElement>(
         node.style.setProperty("--wipe-opacity", wipeOpacity.toFixed(4));
 
         const activeScene = p < 0.3 ? 0 : p < 0.6 ? 1 : 2;
-        if (node.dataset.activeScene !== String(activeScene)) {
-          node.dataset.activeScene = String(activeScene);
-        }
+        syncActiveScene(node, activeScene);
       } else {
         // Wellenweg: two scenes — wipe follows the left edge of the reveal
         const r1 = smoothstep(0.22, 0.58, p);
@@ -87,9 +102,7 @@ export function useScrollProgress<T extends HTMLElement = HTMLElement>(
         node.style.setProperty("--wipe-opacity", wipeOpacity.toFixed(4));
 
         const activeScene = p < 0.42 ? 0 : 1;
-        if (node.dataset.activeScene !== String(activeScene)) {
-          node.dataset.activeScene = String(activeScene);
-        }
+        syncActiveScene(node, activeScene);
       }
     };
 
