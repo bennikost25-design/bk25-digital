@@ -16,7 +16,7 @@
 
   --header-height: 4.5rem;
   --container-max: 74rem;
-  --section-pad-y: clamp(4.5rem, 11vw, 9rem);
+  --section-pad-y: clamp(3.25rem, 6.5vw, 6.25rem);
   --section-pad-x: clamp(1.15rem, 4vw, 2.75rem);
   --slash-angle: -28deg;
 }
@@ -89,8 +89,12 @@ p {
   text-wrap: pretty;
 }
 
+/*
+  Do not set `color: inherit` on all anchors — it fights Tailwind text utilities
+  on Link-based buttons (e.g. onLight → white text on violet).
+  Unstyled in-content links keep body color via inheritance from their parent.
+*/
 a {
-  color: inherit;
   text-decoration-thickness: 1px;
   text-underline-offset: 0.2em;
 }
@@ -307,4 +311,112 @@ a.nav-link-mobile:focus-visible {
 
 .process-step.is-active > .process-marker {
   background: var(--color-violet);
+}
+
+/* Project story stages — driven by --story-progress (0–1) */
+.project-story {
+  --story-progress: 0;
+}
+
+.story-stage {
+  isolation: isolate;
+}
+
+.story-frame {
+  width: min(100%, 34rem);
+  border-radius: 0.35rem;
+  will-change: transform;
+}
+
+.story-frame--motion {
+  transition: none;
+}
+
+/* Nahwerk — three layered frames */
+.story-frame--layered-0 {
+  left: 0;
+  top: 0;
+  z-index: 1;
+  width: min(100%, 36rem);
+}
+
+.story-frame--layered-0.story-frame--motion {
+  transform: translate3d(
+      calc(var(--story-progress) * -6%),
+      calc(var(--story-progress) * -4%),
+      0
+    )
+    rotate(calc(var(--story-progress) * -1.2deg))
+    scale(calc(1 - var(--story-progress) * 0.04));
+}
+
+.story-frame--layered-1 {
+  left: 12%;
+  top: 18%;
+  z-index: 2;
+  width: min(88%, 30rem);
+}
+
+.story-frame--layered-1.story-frame--motion {
+  transform: translate3d(
+      calc(var(--story-progress) * 8%),
+      calc(var(--story-progress) * -10%),
+      0
+    )
+    rotate(calc(-1.5deg + var(--story-progress) * 2deg));
+  opacity: calc(0.35 + var(--story-progress) * 0.65);
+}
+
+.story-frame--layered-2 {
+  left: 28%;
+  top: 38%;
+  z-index: 3;
+  width: min(78%, 26rem);
+}
+
+.story-frame--layered-2.story-frame--motion {
+  transform: translate3d(
+      calc(var(--story-progress) * 14%),
+      calc(var(--story-progress) * -18%),
+      0
+    )
+    rotate(calc(2deg - var(--story-progress) * 1deg));
+  opacity: calc(0.15 + var(--story-progress) * 0.85);
+}
+
+/* Wellenweg — two-frame pair, quieter motion */
+.story-frame--pair-0 {
+  left: 0;
+  top: 4%;
+  z-index: 1;
+  width: min(100%, 34rem);
+}
+
+.story-frame--pair-0.story-frame--motion {
+  transform: translate3d(0, calc(var(--story-progress) * -6%), 0)
+    rotate(calc(-1deg + var(--story-progress) * 0.8deg));
+}
+
+.story-frame--pair-1 {
+  left: 18%;
+  top: 28%;
+  z-index: 2;
+  width: min(86%, 28rem);
+}
+
+.story-frame--pair-1.story-frame--motion {
+  transform: translate3d(
+      calc(var(--story-progress) * 6%),
+      calc(var(--story-progress) * -12%),
+      0
+    )
+    rotate(calc(1.5deg - var(--story-progress) * 0.5deg));
+  opacity: calc(0.4 + var(--story-progress) * 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .story-frame--motion {
+    transform: none !important;
+    opacity: 1 !important;
+  }
 }

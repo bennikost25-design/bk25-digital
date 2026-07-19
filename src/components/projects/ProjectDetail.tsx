@@ -1,10 +1,9 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { Project } from "@/data/projects";
 import { Button } from "@/components/ui/Button";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionLabel } from "@/components/ui/SectionLabel";
-import { BrowserMockup } from "./BrowserMockup";
-import { PhoneMockup } from "./PhoneMockup";
 
 type ProjectDetailProps = {
   project: Project;
@@ -25,7 +24,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
             <SectionLabel tone="light" className="!text-inherit opacity-70">
               {project.label}
             </SectionLabel>
-            <h1 className="mt-4 text-[clamp(2.25rem,6vw,4rem)] max-w-[14ch]">
+            <h1 className="mt-4 max-w-[14ch] text-[clamp(2.25rem,6vw,4rem)]">
               {project.title}
             </h1>
             <p
@@ -41,11 +40,11 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
               {project.shortDescription}
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
-              {project.liveUrl && (
+              {project.liveUrl ? (
                 <Button href={project.liveUrl} variant="onLight" external>
                   Live-Demo öffnen
                 </Button>
-              )}
+              ) : null}
               <Button href="/projekte" variant="outline">
                 Alle Projekte
               </Button>
@@ -54,11 +53,11 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
         </div>
       </header>
 
-      <div className="bg-[var(--color-white)] text-[var(--color-black)]">
-        <div className="container-site section-pad grid gap-16 lg:grid-cols-2">
+      <div className="bg-white text-black">
+        <div className="container-site section-pad grid gap-12 lg:grid-cols-2 lg:gap-16">
           <Reveal>
             <h2 className="text-[clamp(1.5rem,3vw,2rem)]">Ausgangslage</h2>
-            <p className="mt-4 text-[var(--color-muted)] leading-relaxed">
+            <p className="mt-4 leading-relaxed text-muted">
               {project.startingPoint}
             </p>
           </Reveal>
@@ -66,23 +65,21 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
             <h2 className="text-[clamp(1.5rem,3vw,2rem)]">
               Gestalterische Richtung
             </h2>
-            <p className="mt-4 text-[var(--color-muted)] leading-relaxed">
+            <p className="mt-4 leading-relaxed text-muted">
               {project.designDirection}
             </p>
           </Reveal>
           <Reveal>
             <h2 className="text-[clamp(1.5rem,3vw,2rem)]">Seitenumfang</h2>
-            <p className="mt-4 text-[var(--color-muted)] leading-relaxed">
-              {project.pageScope}
-            </p>
+            <p className="mt-4 leading-relaxed text-muted">{project.pageScope}</p>
           </Reveal>
           <Reveal delay={1}>
             <h2 className="text-[clamp(1.5rem,3vw,2rem)]">Besondere Bereiche</h2>
             <ul className="mt-4 space-y-3">
               {project.specialAreas.map((area) => (
-                <li key={area} className="flex gap-3 text-[var(--color-muted)]">
+                <li key={area} className="flex gap-3 text-muted">
                   <span
-                    className="mt-2 h-3 w-1 shrink-0 skew-x-[-28deg] bg-[var(--color-violet-dark)]"
+                    className="mt-2 h-3 w-1 shrink-0 skew-x-[var(--slash-angle)] bg-violet-dark"
                     aria-hidden="true"
                   />
                   {area}
@@ -105,69 +102,49 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
               className="text-[clamp(1.5rem,3vw,2rem)]"
               style={{ color: project.theme.text }}
             >
-              Bildplätze für Screenshots
+              Einblicke in die Gestaltung
             </h2>
-            <p
-              className="mt-3 max-w-xl"
-              style={{ color: project.theme.muted }}
-            >
-              Hier können später echte Screenshots über{" "}
-              <code className="text-sm">projects.ts</code> und den Ordner{" "}
-              <code className="text-sm">public/images/projects/{project.id}</code>{" "}
-              ergänzt werden.
+            <p className="mt-3 max-w-xl" style={{ color: project.theme.muted }}>
+              Screenshots aus dem Konzeptprojekt – zur Illustration von Gestaltung
+              und Leistungsumfang, nicht als dokumentierter Kundenauftrag.
             </p>
           </Reveal>
 
-          <div className="mt-12 grid gap-10 lg:grid-cols-[1.4fr_0.8fr]">
-            {project.screenshots
-              .filter((s) => s.aspect === "browser" || s.aspect === "wide")
-              .map((slot) => (
-                <Reveal key={slot.id}>
+          <div className="mt-10 grid gap-8 md:grid-cols-2">
+            {project.storyFrames.map((frame, index) => (
+              <Reveal
+                key={frame.id}
+                  delay={index === 0 ? 1 : ((Math.min(index, 3) as 1 | 2 | 3))}
+                className={index === 0 ? "md:col-span-2" : undefined}
+              >
+                <figure>
                   <p
-                    className="mb-3 text-sm font-[family-name:var(--font-heading)] uppercase tracking-[0.14em]"
+                    className="mb-3 font-[family-name:var(--font-heading)] text-sm uppercase tracking-[0.14em]"
                     style={{ color: project.theme.muted }}
                   >
-                    {slot.label}
-                    {slot.src ? "" : " — Platzhalter"}
+                    {frame.caption}
                   </p>
-                  <BrowserMockup
-                    title={slot.label}
-                    chromeColor={project.theme.mockupChrome}
-                    screenColor={project.theme.mockupScreen}
-                    accentColor={project.theme.accentSoft}
-                  />
-                </Reveal>
-              ))}
-            <div className="flex flex-wrap gap-8 justify-center lg:justify-start">
-              {project.screenshots
-                .filter((s) => s.aspect === "phone")
-                .map((slot) => (
-                  <Reveal key={slot.id}>
-                    <p
-                      className="mb-3 text-center text-sm font-[family-name:var(--font-heading)] uppercase tracking-[0.14em]"
-                      style={{ color: project.theme.muted }}
-                    >
-                      {slot.label}
-                      {slot.src ? "" : " — Platzhalter"}
-                    </p>
-                    <PhoneMockup
-                      chromeColor={project.theme.mockupChrome}
-                      screenColor={project.theme.mockupScreen}
-                      accentColor={project.theme.accent}
-                      label={slot.label}
+                  <div className="relative aspect-[16/10] overflow-hidden bg-black/5 shadow-[0_18px_40px_rgba(0,0,0,0.1)]">
+                    <Image
+                      src={frame.src}
+                      alt={frame.alt}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 80vw"
+                      className="object-cover object-top"
                     />
-                  </Reveal>
-                ))}
-            </div>
+                  </div>
+                </figure>
+              </Reveal>
+            ))}
           </div>
         </div>
       </section>
 
-      <div className="bg-[var(--color-black)] text-[var(--color-white)]">
-        <div className="container-site py-12">
+      <div className="bg-black text-white">
+        <div className="container-site py-10">
           <Link
             href="/projekte"
-            className="font-[family-name:var(--font-heading)] text-[var(--color-violet)] no-underline hover:underline"
+            className="font-[family-name:var(--font-heading)] text-violet no-underline hover:underline"
           >
             ← Zurück zur Projektübersicht
           </Link>

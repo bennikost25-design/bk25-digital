@@ -6,7 +6,6 @@ export type ProjectTheme = {
   text: string;
   muted: string;
   mockupChrome: string;
-  mockupScreen: string;
 };
 
 export type ProjectFeature = {
@@ -14,12 +13,11 @@ export type ProjectFeature = {
   description: string;
 };
 
-export type ProjectScreenshotSlot = {
+export type ProjectStoryFrame = {
   id: string;
-  label: string;
-  /** Path under /public — replace placeholders with real screenshots later */
-  src: string | null;
-  aspect: "browser" | "phone" | "wide";
+  src: string;
+  alt: string;
+  caption: string;
 };
 
 export type Project = {
@@ -39,7 +37,7 @@ export type Project = {
   designDirection: string;
   pageScope: string;
   specialAreas: string[];
-  screenshots: ProjectScreenshotSlot[];
+  storyFrames: ProjectStoryFrame[];
 };
 
 export const projects: Project[] = [
@@ -55,19 +53,19 @@ export const projects: Project[] = [
       "Ein umfangreicher digitaler Auftritt mit eigener visueller Identität, klarer Nutzerführung und einer emotionaleren Darstellung moderner Pflege.",
     features: [
       {
-        title: "Individuelle visuelle Richtung",
+        title: "Individuell ausgearbeitete Startseite",
         description:
-          "Warme Naturtöne und eine eigenständige Typografie schaffen Wiedererkennbarkeit jenseits von Standardvorlagen.",
+          "Eigene visuelle Welt statt Vorlage – warm, ruhig und auf den ersten Blick erkennbar.",
       },
       {
-        title: "Umfangreiche Inhaltsstruktur",
+        title: "Ausführliche Leistungsdarstellung",
         description:
-          "Mehrere Inhaltsebenen für Angebote, Alltag und Orientierung – klar gegliedert statt überladen.",
+          "Angebote werden verständlich gegliedert, ohne Besucher zu überfordern.",
       },
       {
-        title: "Stärker ausgearbeitete Nutzerführung",
+        title: "Karriere- und Bewerbungsbereich",
         description:
-          "Wege für Angehörige, Bewerber und Interessierte sind bewusst getrennt und leicht auffindbar.",
+          "Zusätzliche Tiefe für Bewerberinnen und Bewerber – typisch für den Umfang des Komplettpakets.",
       },
     ],
     theme: {
@@ -78,7 +76,6 @@ export const projects: Project[] = [
       text: "#1A1612",
       muted: "#6B5E4F",
       mockupChrome: "#2C2419",
-      mockupScreen: "#FAF7F2",
     },
     liveUrl: null,
     href: "/projekte/nahwerk-pflege",
@@ -94,24 +91,24 @@ export const projects: Project[] = [
       "Bereiche für Angehörige und Bewerber mit eigener Priorität",
       "Ruhige, großzügige Bild- und Textflächen",
     ],
-    screenshots: [
+    storyFrames: [
       {
-        id: "nahwerk-desktop-home",
-        label: "Desktop – Startseite",
-        src: null,
-        aspect: "browser",
+        id: "nahwerk-startseite",
+        src: "/images/projects/bk25-nahwerk-startseite.jpg",
+        alt: "Startseite des Konzeptprojekts Nahwerk Pflege in einer warmen, ruhigen Designwelt",
+        caption: "Startseite",
       },
       {
-        id: "nahwerk-desktop-angebote",
-        label: "Desktop – Angebote",
-        src: null,
-        aspect: "wide",
+        id: "nahwerk-leistungen",
+        src: "/images/projects/bk25-nahwerk-leistungen.jpg",
+        alt: "Ausführliche Leistungsseite des Konzeptprojekts Nahwerk Pflege",
+        caption: "Leistungen",
       },
       {
-        id: "nahwerk-mobile-home",
-        label: "Mobil – Startseite",
-        src: null,
-        aspect: "phone",
+        id: "nahwerk-karriere",
+        src: "/images/projects/bk25-nahwerk-karriere.jpg",
+        alt: "Karrierebereich des Konzeptprojekts Nahwerk Pflege",
+        caption: "Karriere",
       },
     ],
   },
@@ -127,19 +124,19 @@ export const projects: Project[] = [
       "Ein kompakter und professioneller Auftritt, der trotz geringerem Umfang eine erkennbare Identität und eine klare mobile Nutzerführung besitzt.",
     features: [
       {
-        title: "Kompakter Seitenumfang",
+        title: "Klarer Einstieg",
         description:
-          "Fokussierte Inhalte ohne Ballast – ideal für Einrichtungen mit klar abgegrenztem Angebot.",
+          "Orientierung und Vertrauen stehen zuerst – ohne überladenen Umfang.",
       },
       {
-        title: "Klare Inhaltsprioritäten",
+        title: "Konzentrierte Inhaltsstruktur",
         description:
-          "Was zuerst zählt, steht zuerst: Orientierung, Vertrauen und der nächste Schritt.",
+          "Wesentliche Leistungen und Kontaktwege sind schnell erreichbar.",
       },
       {
-        title: "Mobil vollständig durchdacht",
+        title: "Eigenständige Designwelt",
         description:
-          "Die mobile Nutzung steht im Zentrum – nicht als Nachgedanke, sondern als Ausgangspunkt.",
+          "Blau-türkise Gestaltung mit klarer Haltung – fokussiert, nicht minderwertig.",
       },
     ],
     theme: {
@@ -150,7 +147,6 @@ export const projects: Project[] = [
       text: "#0F2A32",
       muted: "#4A6B75",
       mockupChrome: "#143842",
-      mockupScreen: "#F0F7F9",
     },
     liveUrl: "https://wellenweg-pflege-demo.vercel.app",
     href: "/projekte/wellenweg-pflege",
@@ -166,24 +162,18 @@ export const projects: Project[] = [
       "Schnelle Orientierung zu Angebot und Kontakt",
       "Demo-fähige Umsetzung als lebender Prototyp",
     ],
-    screenshots: [
+    storyFrames: [
       {
-        id: "wellenweg-desktop-home",
-        label: "Desktop – Startseite",
-        src: null,
-        aspect: "browser",
+        id: "wellenweg-startseite",
+        src: "/images/projects/bk25-wellenweg-startseite.jpg",
+        alt: "Startseite des Konzeptprojekts Wellenweg Pflege in blau-türkiser Gestaltung",
+        caption: "Startseite",
       },
       {
-        id: "wellenweg-mobile-home",
-        label: "Mobil – Startseite",
-        src: null,
-        aspect: "phone",
-      },
-      {
-        id: "wellenweg-mobile-kontakt",
-        label: "Mobil – Kontakt",
-        src: null,
-        aspect: "phone",
+        id: "wellenweg-leistungen",
+        src: "/images/projects/bk25-wellenweg-leistungen.jpg",
+        alt: "Fokussierte Leistungsseite des Konzeptprojekts Wellenweg Pflege",
+        caption: "Leistungen",
       },
     ],
   },

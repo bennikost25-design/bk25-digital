@@ -31,15 +31,14 @@ type ButtonProps = ButtonAsLink | ButtonAsButton;
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-[var(--color-violet)] text-[var(--color-black)] hover:bg-[#b09aff] focus-visible:outline-[var(--color-violet)]",
+    "bg-violet text-black hover:bg-[#b09aff] focus-visible:outline-violet",
   secondary:
-    "border border-[color:color-mix(in_srgb,var(--color-white)_35%,transparent)] text-[var(--color-white)] hover:border-[var(--color-violet)] hover:text-[var(--color-violet)] bg-transparent",
-  ghost:
-    "text-[var(--color-white)] hover:text-[var(--color-violet)] bg-transparent px-0",
+    "border border-white/35 text-white hover:border-violet hover:text-violet bg-transparent",
+  ghost: "text-white hover:text-violet bg-transparent px-0",
   onLight:
-    "bg-[var(--color-violet-dark)] text-[var(--color-white)] hover:bg-[#5630c4] focus-visible:outline-[var(--color-violet-dark)]",
+    "bg-violet-dark text-white hover:bg-[#5630c4] focus-visible:outline-violet-dark",
   outline:
-    "border border-[var(--color-black)]/30 text-[var(--color-black)] hover:border-[var(--color-violet-dark)] hover:text-[var(--color-violet-dark)] bg-transparent",
+    "border border-black/30 text-black hover:border-violet-dark hover:text-violet-dark bg-transparent",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -48,15 +47,10 @@ const sizeClasses: Record<ButtonSize, string> = {
 };
 
 export function Button(props: ButtonProps) {
-  const {
-    children,
-    className,
-    variant = "primary",
-    size = "md",
-  } = props;
+  const { children, className, variant = "primary", size = "md" } = props;
 
   const classes = cn(
-    "inline-flex items-center justify-center gap-2 font-[family-name:var(--font-heading)] font-medium tracking-wide transition-colors duration-200 rounded-sm",
+    "inline-flex items-center justify-center gap-2 font-[family-name:var(--font-heading)] font-medium tracking-wide transition-colors duration-200 rounded-sm no-underline",
     "disabled:opacity-50 disabled:pointer-events-none",
     variantClasses[variant],
     sizeClasses[size],

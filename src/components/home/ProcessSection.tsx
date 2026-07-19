@@ -76,8 +76,8 @@ export function ProcessSection() {
           >
             Von der ersten Idee bis zur fertigen Website.
           </h2>
-          <p className="font-accent mt-5 max-w-[20ch] text-[clamp(1.25rem,2.5vw,1.7rem)] text-white/70">
-            Fünf Schritte. Eine klare Linie.
+          <p className="font-accent mt-5 max-w-[22ch] text-[clamp(1.15rem,2.3vw,1.55rem)] text-white/70">
+            Fünf Schritte. Strukturierte Begleitung statt loses Hin und Her.
           </p>
         </Reveal>
 

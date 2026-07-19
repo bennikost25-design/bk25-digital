@@ -15,25 +15,25 @@ export const processSteps: ProcessStep[] = [
     number: "02",
     title: "Richtung entwickeln",
     description:
-      "Inhalte, Struktur und visuelle Ausrichtung werden gemeinsam festgelegt.",
+      "Nach der Auftragserteilung führen strukturierte Fragebögen zu Inhalten und Design durch die wichtigsten Entscheidungen – klar getrennt und in Ruhe ausfüllbar.",
   },
   {
     number: "03",
     title: "Gestalten und umsetzen",
     description:
-      "Die Website entsteht responsiv, verständlich und technisch sauber.",
+      "Die Website entsteht responsiv, verständlich und technisch sauber. Rückmeldungen zum Entwurf werden gebündelt gesammelt, statt Stück für Stück.",
   },
   {
     number: "04",
     title: "Prüfen und veröffentlichen",
     description:
-      "Alle wichtigen Ansichten und Funktionen werden kontrolliert, bevor die Website online geht.",
+      "Nach der letzten Korrekturrunde folgt eine klare Abschlussprüfung: Inhalte, Freigaben und Veröffentlichung werden gemeinsam abgestimmt.",
   },
   {
     number: "05",
     title: "Weiter begleiten",
     description:
-      "Änderungen und Weiterentwicklungen können auch nach der Veröffentlichung umgesetzt werden.",
+      "Nach der Fertigstellung bleiben Anpassungen möglich. Eine eventuelle Rezensions- oder Portfoliofreigabe ist freiwillig und vom Projektablauf getrennt.",
   },
 ];
 
