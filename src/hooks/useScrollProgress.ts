@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 
 type UseScrollProgressOptions = {
   enabled?: boolean;
-  /** Number of scenes after the base scene that can be revealed (1 or 2) */
+  /** Number of scenes after the base scene (1 = two scenes, 2 = three scenes) */
   revealCount?: number;
 };
 
@@ -36,6 +36,9 @@ function syncActiveScene(node: HTMLElement, activeScene: number) {
 /**
  * Writes scroll progress onto the track via CSS variables + data-active-scene.
  * No React state updates per scroll tick.
+ *
+ * `--slide-shift` is a percentage string (e.g. "0%", "150%") driving
+ * horizontal slide positions: scene i sits at i*100% base offset.
  */
 export function useScrollProgress<T extends HTMLElement = HTMLElement>(
   options: UseScrollProgressOptions = {},
@@ -49,10 +52,11 @@ export function useScrollProgress<T extends HTMLElement = HTMLElement>(
 
     const reset = () => {
       node.style.setProperty("--story-progress", "0");
-      node.style.setProperty("--reveal-1", "0");
-      node.style.setProperty("--reveal-2", "0");
-      node.style.setProperty("--wipe-position", "1");
-      node.style.setProperty("--wipe-opacity", "0");
+      node.style.setProperty("--slide-shift", "0%");
+      node.style.setProperty("--slide-motion", "0");
+      node.style.setProperty("--slide-scale", "1");
+      node.style.setProperty("--slide-seam", "100%");
+      node.style.setProperty("--scene-progress", "0%");
       node.dataset.activeScene = "";
       syncActiveScene(node, 0);
     };
@@ -73,37 +77,47 @@ export function useScrollProgress<T extends HTMLElement = HTMLElement>(
 
       node.style.setProperty("--story-progress", p.toFixed(4));
 
+      let slideUnits: number;
+      let activeScene: number;
+
       if (revealCount >= 2) {
-        // Nahwerk: three scenes
+        // Nahwerk: three scenes — continuous progress from r1 + r2 (0 → 2)
         const r1 = smoothstep(0.18, 0.42, p);
         const r2 = smoothstep(0.48, 0.72, p);
-        const wipeOpacity1 = Math.sin(Math.PI * r1);
-        const wipeOpacity2 = Math.sin(Math.PI * r2);
-        const useSecond = wipeOpacity2 >= wipeOpacity1;
-        const wipeOpacity = clamp01(Math.max(wipeOpacity1, wipeOpacity2));
-        const wipePosition = clamp01(useSecond ? 1 - r2 : 1 - r1);
-
-        node.style.setProperty("--reveal-1", r1.toFixed(4));
-        node.style.setProperty("--reveal-2", r2.toFixed(4));
-        node.style.setProperty("--wipe-position", wipePosition.toFixed(4));
-        node.style.setProperty("--wipe-opacity", wipeOpacity.toFixed(4));
-
-        const activeScene = p < 0.3 ? 0 : p < 0.6 ? 1 : 2;
-        syncActiveScene(node, activeScene);
+        slideUnits = r1 + r2;
+        activeScene = slideUnits < 0.5 ? 0 : slideUnits < 1.5 ? 1 : 2;
       } else {
-        // Wellenweg: two scenes — wipe follows the left edge of the reveal
+        // Wellenweg: two scenes — progress from r1 (0 → 1)
         const r1 = smoothstep(0.22, 0.58, p);
-        const wipeOpacity = clamp01(Math.sin(Math.PI * r1));
-        const wipePosition = clamp01(1 - r1);
-
-        node.style.setProperty("--reveal-1", r1.toFixed(4));
-        node.style.setProperty("--reveal-2", "0");
-        node.style.setProperty("--wipe-position", wipePosition.toFixed(4));
-        node.style.setProperty("--wipe-opacity", wipeOpacity.toFixed(4));
-
-        const activeScene = p < 0.42 ? 0 : 1;
-        syncActiveScene(node, activeScene);
+        slideUnits = r1;
+        activeScene = slideUnits < 0.5 ? 0 : 1;
       }
+
+      const slideShiftPct = slideUnits * 100;
+      node.style.setProperty("--slide-shift", `${slideShiftPct.toFixed(3)}%`);
+
+      // Normalized 0–100% across the full scene range (for progress line)
+      const sceneProgressPct =
+        revealCount > 0 ? (slideUnits / revealCount) * 100 : 0;
+      node.style.setProperty(
+        "--scene-progress",
+        `${sceneProgressPct.toFixed(3)}%`,
+      );
+
+      // Peak mid-transition (0 at rest on a scene, 1 at halfway between scenes)
+      const frac = slideUnits - Math.floor(slideUnits);
+      const inTransit = slideUnits > 0 && slideUnits < revealCount && frac > 0.001;
+      const motion = inTransit ? Math.sin(Math.PI * frac) : 0;
+      const isWellenweg = revealCount < 2;
+      const scaleMin = isWellenweg ? 0.988 : 0.985;
+      const scale = scaleMin + (1 - motion) * (1 - scaleMin);
+      const seamPct = inTransit ? (1 - frac) * 100 : 100;
+
+      node.style.setProperty("--slide-motion", motion.toFixed(4));
+      node.style.setProperty("--slide-scale", scale.toFixed(4));
+      node.style.setProperty("--slide-seam", `${seamPct.toFixed(3)}%`);
+
+      syncActiveScene(node, activeScene);
     };
 
     const onScroll = () => {

@@ -12,11 +12,14 @@ type ProjectExperienceProps = {
   sectionId?: string;
 };
 
+/** Sticky split-stage from this width up; below = static vertical scenes */
+const STICKY_MIN_WIDTH = 1180;
+
 function useStickyStoryMode() {
   const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
-    const desktop = window.matchMedia("(min-width: 1024px)");
+    const desktop = window.matchMedia(`(min-width: ${STICKY_MIN_WIDTH}px)`);
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const sync = () => setEnabled(desktop.matches && !motion.matches);
     sync();
@@ -29,6 +32,27 @@ function useStickyStoryMode() {
   }, []);
 
   return enabled;
+}
+
+function ProjectActions({
+  project,
+  className,
+}: {
+  project: Project;
+  className?: string;
+}) {
+  return (
+    <div className={cn("project-stage-actions flex flex-wrap gap-3", className)}>
+      <Button href={project.href} variant="onLight">
+        Projekt im Detail
+      </Button>
+      {project.liveUrl ? (
+        <Button href={project.liveUrl} variant="outline" external>
+          Demo öffnen
+        </Button>
+      ) : null}
+    </div>
+  );
 }
 
 export function ProjectExperience({
@@ -73,13 +97,10 @@ export function ProjectExperience({
           style={{ height: project.storyTrackHeight }}
           data-active-scene="0"
         >
-          <ProjectStickyStage
-            frames={project.storyFrames}
-            variant={isNahwerk ? "slash" : "wave"}
-          />
+          <ProjectStickyStage project={project} />
         </div>
       ) : (
-        <ProjectStaticScenes frames={project.storyFrames} />
+        <ProjectStaticScenes project={project} />
       )}
 
       <ProjectStorySummary project={project} />
@@ -121,6 +142,7 @@ function ProjectStoryIntro({ project }: { project: Project }) {
         >
           {project.shortDescription}
         </p>
+        <ProjectActions project={project} className="mt-8" />
       </div>
     </div>
   );
@@ -149,73 +171,150 @@ function SceneBenefitContent({
   );
 }
 
-function ProjectStickyStage({
+function SceneProgress({
   frames,
-  variant,
+  className,
 }: {
   frames: ProjectStoryFrame[];
-  variant: "slash" | "wave";
+  className?: string;
 }) {
   return (
+    <div
+      className={cn("project-scene-progress", className)}
+      aria-hidden="true"
+    >
+      <div className="project-scene-progress-nums">
+        {frames.map((frame, index) => (
+          <span
+            key={frame.id}
+            className={cn(
+              "project-scene-progress-num",
+              `project-scene-progress-num--${index}`,
+            )}
+          >
+            {String(index + 1).padStart(2, "0")}
+          </span>
+        ))}
+      </div>
+      <div className="project-scene-progress-track">
+        <div className="project-scene-progress-fill" />
+      </div>
+    </div>
+  );
+}
+
+function ProjectStickyStage({ project }: { project: Project }) {
+  const frames = project.storyFrames;
+  const sceneTotal = String(frames.length).padStart(2, "0");
+
+  return (
     <div className="project-sticky-stage sticky top-[var(--header-height)] z-10 flex h-[calc(100svh-var(--header-height))] flex-col justify-center overflow-hidden">
-      <div className="relative mx-auto flex h-full w-full max-w-[100vw] flex-col items-center justify-center px-[3vw]">
-        <div className="project-stage-canvas relative w-[min(92vw,90rem)]">
-          {frames.map((frame, index) => (
-            <figure
-              key={frame.id}
-              className={cn(
-                "project-scene",
-                index === 0 && "project-scene--base",
-                index > 0 && `project-scene--reveal-${index}`,
-                index > 0 &&
-                  (variant === "slash"
-                    ? "project-scene--slash"
-                    : "project-scene--wave"),
-              )}
-            >
-              <div className="project-scene-media relative mx-auto aspect-[16/10] w-full max-h-[calc(100svh-var(--header-height)-11rem)] overflow-hidden shadow-[0_28px_80px_rgba(0,0,0,0.18)]">
-                <Image
-                  src={frame.src}
-                  alt={frame.alt}
-                  fill
-                  sizes="92vw"
-                  className="object-contain object-top"
-                  priority={index === 0}
-                />
+      <div className="project-split-stage">
+        <aside className="project-stage-copy">
+          <div className="project-copy-stack">
+            {frames.map((frame, index) => (
+              <div
+                key={`copy-${frame.id}`}
+                data-scene-panel={String(index)}
+                className={cn(
+                  "project-copy-panel",
+                  `project-copy-panel--${index}`,
+                )}
+                aria-hidden={index !== 0}
+                inert={index !== 0 ? true : undefined}
+              >
+                <SceneBenefitContent frame={frame} headingLevel="h3" />
               </div>
-            </figure>
-          ))}
+            ))}
+          </div>
 
-          {variant === "slash" ? (
-            <div className="project-slash-wipe" aria-hidden="true" />
-          ) : (
-            <div className="project-wave-wipe" aria-hidden="true" />
-          )}
-        </div>
+          <SceneProgress frames={frames} className="mt-auto pt-6" />
+          <ProjectActions project={project} className="mt-5" />
+        </aside>
 
-        <div className="project-captions">
-          {frames.map((frame, index) => (
-            <div
-              key={`caption-${frame.id}`}
-              data-scene-panel={String(index)}
-              className={cn(
-                "project-scene-caption",
-                `project-scene-caption--${index}`,
-              )}
-              aria-hidden={index === 0 ? undefined : true}
-            >
-              <SceneBenefitContent frame={frame} headingLevel="h3" />
+        <div className="project-stage-view">
+          <div className="project-site-frame">
+            <div className="project-frame-chrome">
+              <div className="project-frame-chrome-left">
+                <span
+                  className="project-frame-slash"
+                  aria-hidden="true"
+                />
+                <span className="project-frame-name">{project.title}</span>
+                <span className="project-frame-badge">Konzeptprojekt</span>
+              </div>
+              <div className="project-frame-chrome-right">
+                <span className="project-frame-scene" aria-live="polite">
+                  <span className="project-frame-scene-active">
+                    {/* shown via CSS per data-active-scene */}
+                    {frames.map((_, index) => (
+                      <span
+                        key={index}
+                        className={cn(
+                          "project-frame-scene-n",
+                          `project-frame-scene-n--${index}`,
+                        )}
+                      >
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                    ))}
+                  </span>
+                  <span aria-hidden="true"> / {sceneTotal}</span>
+                </span>
+                {project.liveUrl ? (
+                  <a
+                    href={project.liveUrl}
+                    className="project-frame-demo"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Demo öffnen
+                    <span className="sr-only"> (öffnet in neuem Tab)</span>
+                  </a>
+                ) : null}
+              </div>
             </div>
-          ))}
+
+            <div className="project-slide-viewport">
+              <div
+                className="project-slide-edge"
+                aria-hidden="true"
+              />
+              {frames.map((frame, index) => (
+                <figure
+                  key={frame.id}
+                  className="project-slide"
+                  style={
+                    {
+                      "--slide-base": `${index * 100}%`,
+                    } as React.CSSProperties
+                  }
+                >
+                  <div className="project-slide-media">
+                    <Image
+                      src={frame.src}
+                      alt={frame.alt}
+                      fill
+                      sizes="(min-width: 1180px) 65vw, 100vw"
+                      className="object-contain object-top"
+                      priority={index === 0}
+                    />
+                  </div>
+                </figure>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function ProjectStaticScenes({ frames }: { frames: ProjectStoryFrame[] }) {
+function ProjectStaticScenes({ project }: { project: Project }) {
+  const frames = project.storyFrames;
+
   return (
-    <div className="space-y-12 px-[var(--section-pad-x)] pb-6 sm:space-y-14">
+    <div className="project-static-scenes space-y-12 px-[var(--section-pad-x)] pb-6 sm:space-y-14">
       {frames.map((frame) => (
         <figure key={frame.id} className="mx-auto w-full max-w-[74rem]">
           <div className="relative aspect-[16/10] w-full overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.14)]">
@@ -223,7 +322,7 @@ function ProjectStaticScenes({ frames }: { frames: ProjectStoryFrame[] }) {
               src={frame.src}
               alt={frame.alt}
               fill
-              sizes="(max-width: 1023px) 100vw, 92vw"
+              sizes="(max-width: 1179px) 100vw, 92vw"
               className="object-contain object-top"
             />
           </div>
@@ -264,16 +363,7 @@ function ProjectStorySummary({ project }: { project: Project }) {
             </li>
           ))}
         </ul>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Button href={project.href} variant="onLight">
-            Projekt ansehen
-          </Button>
-          {project.liveUrl ? (
-            <Button href={project.liveUrl} variant="outline" external>
-              Live-Demo
-            </Button>
-          ) : null}
-        </div>
+        <ProjectActions project={project} className="mt-8" />
       </div>
     </div>
   );

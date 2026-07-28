@@ -82,7 +82,7 @@ export const projects: Project[] = [
       text: "#1A1612",
       muted: "#6B5E4F",
     },
-    liveUrl: null,
+    liveUrl: "https://nahwerk-pflege-demo.vercel.app",
     href: "/projekte/nahwerk-pflege",
     startingPoint:
       "Viele Pflegeauftritte wirken austauschbar: ähnliche Farben, ähnliche Bausteine, wenig Bezug zur konkreten Einrichtung. Nahwerk Pflege entstand als Konzeptprojekt, um zu zeigen, wie ein umfangreicher Auftritt mit eigener Haltung und klarer Struktur wirken kann – ohne sich als fertiger Kundenauftrag auszugeben.",

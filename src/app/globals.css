@@ -313,7 +313,7 @@ a.nav-link-mobile:focus-visible {
 }
 
 /* ============================================================
-   Project sticky scroll chapters
+   Project sticky scroll chapters — split stage + horizontal slides
    ============================================================ */
 .project-experience--nahwerk {
   background: var(--project-base, #f5f0e8);
@@ -326,142 +326,327 @@ a.nav-link-mobile:focus-visible {
 .project-scroll-track {
   /* Must not clip — sticky needs visible overflow on ancestors */
   overflow: visible;
+  --slide-shift: 0%;
+  --slide-motion: 0;
+  --slide-scale: 1;
+  --slide-seam: 100%;
+  --scene-progress: 0%;
 }
 
 .project-sticky-stage {
   width: 100%;
 }
 
-.project-stage-canvas {
-  isolation: isolate;
-  min-height: min(56svh, 34rem);
+.project-split-stage {
+  display: grid;
+  grid-template-columns: minmax(17rem, 0.34fr) minmax(0, 0.66fr);
+  gap: clamp(1.25rem, 2.4vw, 2.75rem);
+  align-items: stretch;
+  width: 100%;
+  height: 100%;
+  max-height: calc(100svh - var(--header-height));
+  padding-inline: clamp(1.25rem, 3vw, 2.5rem);
+  padding-block: clamp(0.75rem, 1.5vh, 1.25rem);
+  box-sizing: border-box;
 }
 
-.project-scene {
-  margin: 0;
-}
-
-.project-scene--base {
-  position: relative;
-  z-index: 1;
-  transform: scale(calc(1 - var(--reveal-1, 0) * 0.04))
-    translate3d(0, calc(var(--reveal-1, 0) * -2%), 0);
-  transform-origin: center center;
-}
-
-.project-scene--reveal-1,
-.project-scene--reveal-2 {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
+.project-stage-copy {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  padding-block: 0.25rem;
+  z-index: 2;
 }
 
-.project-scene--reveal-2 {
-  z-index: 3;
+.project-copy-stack {
+  display: grid;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
-/* Nahwerk: diagonal slash reveal — reveal 0 = hidden, reveal 1 = fully visible */
-.project-scene--slash {
-  --scene-reveal: 0;
-}
-
-.project-scene--slash.project-scene--reveal-1 {
-  --scene-reveal: var(--reveal-1, 0);
-}
-
-.project-scene--slash.project-scene--reveal-2 {
-  --scene-reveal: var(--reveal-2, 0);
-}
-
-.project-scene--slash.project-scene--reveal-1,
-.project-scene--slash.project-scene--reveal-2 {
-  /* Kill residual edge pixels exactly at reveal 0 */
-  opacity: min(1, calc(var(--scene-reveal) * 80));
-  clip-path: polygon(
-    calc(120% - var(--scene-reveal) * 120%) -8%,
-    120% -8%,
-    120% 108%,
-    calc(150% - var(--scene-reveal) * 150%) 108%
-  );
-}
-
-/* Wellenweg: horizontal wipe from the right */
-.project-scene--wave.project-scene--reveal-1 {
-  opacity: min(1, calc(var(--reveal-1, 0) * 80));
-  clip-path: inset(0 0 0 calc((1 - var(--reveal-1, 0)) * 100%));
-}
-
-.project-slash-wipe,
-.project-wave-wipe {
-  pointer-events: none;
-  position: absolute;
-  z-index: 12;
-  left: calc(var(--wipe-position, 1) * 100%);
-  opacity: var(--wipe-opacity, 0);
-  transform: translateX(-50%);
-}
-
-.project-slash-wipe {
-  top: -12%;
-  bottom: -12%;
-  width: 0.28rem;
-  background: var(--color-violet);
-  transform: translateX(-50%) skewX(var(--slash-angle));
-  box-shadow: 0 0 24px color-mix(in srgb, var(--color-violet) 35%, transparent);
-}
-
-.project-wave-wipe {
-  inset-block: 8%;
-  width: 0.22rem;
-  background: var(--project-accent-soft, #4a9aab);
-}
-
-.project-captions {
-  pointer-events: none;
-  position: absolute;
-  z-index: 30;
-  left: var(--section-pad-x);
-  bottom: clamp(1rem, 2vw, 2rem);
-  width: min(32rem, 35%, calc(100% - 2 * var(--section-pad-x)));
-  min-width: min(16rem, calc(100% - 2 * var(--section-pad-x)));
-}
-
-.project-scene-caption {
-  position: absolute;
-  inset-inline: 0;
-  bottom: 0;
+.project-copy-panel {
+  grid-area: 1 / 1;
   opacity: 0;
   visibility: hidden;
-  transform: translateY(0.5rem);
+  transform: translateY(0.35rem);
   transition:
-    opacity 220ms ease,
-    transform 220ms ease,
-    visibility 0s linear 220ms;
-  padding: 0.95rem 1.05rem 1.05rem;
-  background: color-mix(in srgb, var(--project-base, #f5f0e8) 96%, #fff);
-  border: 1px solid color-mix(in srgb, var(--project-accent, #8b6914) 18%, transparent);
-  color: var(--project-text, #1a1612);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06);
+    opacity 200ms ease,
+    transform 200ms ease,
+    visibility 0s linear 200ms;
+  pointer-events: none;
 }
 
-.project-experience--wellenweg .project-scene-caption {
-  background: color-mix(in srgb, var(--project-base, #e8f2f5) 94%, #fff);
-  border-color: color-mix(in srgb, var(--project-accent, #1a6b7a) 22%, transparent);
-}
-
-.project-scroll-track[data-active-scene="0"] .project-scene-caption--0,
-.project-scroll-track[data-active-scene="1"] .project-scene-caption--1,
-.project-scroll-track[data-active-scene="2"] .project-scene-caption--2 {
+.project-scroll-track[data-active-scene="0"] .project-copy-panel--0,
+.project-scroll-track[data-active-scene="1"] .project-copy-panel--1,
+.project-scroll-track[data-active-scene="2"] .project-copy-panel--2 {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
   transition:
-    opacity 220ms ease,
-    transform 220ms ease,
+    opacity 200ms ease,
+    transform 200ms ease,
     visibility 0s linear 0s;
+  pointer-events: auto;
+}
+
+.project-scene-progress {
+  flex-shrink: 0;
+}
+
+.project-scene-progress-nums {
+  display: flex;
+  gap: 0.85rem;
+  margin-bottom: 0.55rem;
+}
+
+.project-scene-progress-num {
+  font-family: var(--font-heading), system-ui, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  color: color-mix(in srgb, var(--project-muted, #6b5e4f) 55%, transparent);
+  transition: color 200ms ease;
+}
+
+.project-scroll-track[data-active-scene="0"] .project-scene-progress-num--0,
+.project-scroll-track[data-active-scene="1"] .project-scene-progress-num--1,
+.project-scroll-track[data-active-scene="2"] .project-scene-progress-num--2 {
+  color: var(--project-text, #1a1612);
+}
+
+.project-scene-progress-track {
+  position: relative;
+  height: 1px;
+  width: 100%;
+  max-width: 12rem;
+  background: color-mix(in srgb, var(--project-accent, #8b6914) 22%, transparent);
+}
+
+.project-scene-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--scene-progress, 0%);
+  background: var(--project-accent, #8b6914);
+}
+
+.project-experience--wellenweg .project-scene-progress-fill {
+  background: var(--project-accent-soft, #4a9aab);
+}
+
+.project-stage-actions {
+  flex-shrink: 0;
+}
+
+.project-stage-view {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.project-site-frame {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  border: 1px solid color-mix(in srgb, var(--project-accent, #8b6914) 22%, transparent);
+  background: color-mix(in srgb, var(--project-base, #f5f0e8) 88%, #fff);
+  overflow: hidden;
+}
+
+.project-experience--wellenweg .project-site-frame {
+  border-color: color-mix(in srgb, var(--project-accent, #1a6b7a) 26%, transparent);
+  background: color-mix(in srgb, var(--project-base, #e8f2f5) 85%, #fff);
+}
+
+.project-frame-chrome {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  flex-shrink: 0;
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--project-accent, #8b6914) 16%, transparent);
+  background: color-mix(in srgb, var(--project-alt, #ebe4d8) 70%, #fff);
+}
+
+.project-experience--wellenweg .project-frame-chrome {
+  border-bottom-color: color-mix(
+    in srgb,
+    var(--project-accent, #1a6b7a) 18%,
+    transparent
+  );
+  background: color-mix(in srgb, var(--project-alt, #d4e8ee) 65%, #fff);
+}
+
+.project-frame-chrome-left,
+.project-frame-chrome-right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.75rem;
+  min-width: 0;
+}
+
+.project-frame-slash {
+  display: inline-block;
+  height: 0.7rem;
+  width: 0.18rem;
+  background: var(--color-violet);
+  transform: skewX(var(--slash-angle));
+  flex-shrink: 0;
+}
+
+.project-frame-name {
+  font-family: var(--font-heading), system-ui, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--project-text, #1a1612);
+  white-space: nowrap;
+}
+
+.project-frame-badge {
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--project-muted, #6b5e4f);
+}
+
+.project-frame-scene {
+  font-family: var(--font-heading), system-ui, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--project-muted, #6b5e4f);
+  font-variant-numeric: tabular-nums;
+}
+
+.project-frame-scene-active {
+  display: inline-grid;
+  color: var(--project-text, #1a1612);
+}
+
+.project-frame-scene-n {
+  grid-area: 1 / 1;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.project-scroll-track[data-active-scene="0"] .project-frame-scene-n--0,
+.project-scroll-track[data-active-scene="1"] .project-frame-scene-n--1,
+.project-scroll-track[data-active-scene="2"] .project-frame-scene-n--2 {
+  opacity: 1;
+  visibility: visible;
+}
+
+.project-frame-demo {
+  font-family: var(--font-heading), system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--project-accent, #8b6914);
+  text-decoration: none;
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--project-accent, #8b6914) 40%, transparent);
+  padding-bottom: 0.05rem;
+  transition:
+    color 180ms ease,
+    border-color 180ms ease;
+}
+
+.project-frame-demo:hover {
+  color: var(--project-text, #1a1612);
+  border-bottom-color: var(--project-text, #1a1612);
+}
+
+.project-frame-demo:focus-visible {
+  outline: 2px solid var(--color-violet);
+  outline-offset: 3px;
+}
+
+.project-experience--wellenweg .project-frame-demo {
+  color: var(--project-accent, #1a6b7a);
+  border-bottom-color: color-mix(
+    in srgb,
+    var(--project-accent, #1a6b7a) 45%,
+    transparent
+  );
+}
+
+.project-slide-viewport {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: min(52svh, 28rem);
+  overflow: hidden;
+  isolation: isolate;
+  background: color-mix(in srgb, var(--project-base, #f5f0e8) 92%, #000 4%);
+}
+
+.project-experience--wellenweg .project-slide-viewport {
+  background: color-mix(in srgb, var(--project-base, #e8f2f5) 90%, #000 3%);
+}
+
+/* Accent edge at the visible transition seam */
+.project-slide-edge {
+  pointer-events: none;
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  bottom: 0;
+  left: var(--slide-seam, 100%);
+  width: 2px;
+  opacity: var(--slide-motion, 0);
+  transform: translateX(-50%);
+  background: linear-gradient(
+    180deg,
+    transparent 8%,
+    var(--color-violet) 35%,
+    var(--color-violet) 65%,
+    transparent 92%
+  );
+}
+
+.project-experience--wellenweg .project-slide-edge {
+  background: linear-gradient(
+    180deg,
+    transparent 8%,
+    var(--project-accent-soft, #4a9aab) 35%,
+    var(--project-accent-soft, #4a9aab) 65%,
+    transparent 92%
+  );
+}
+
+.project-slide {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  /* base offset (0% / 100% / 200%) minus shared slide-shift → horizontal handoff */
+  transform: translate3d(
+    calc(var(--slide-base, 0%) - var(--slide-shift, 0%)),
+    0,
+    0
+  );
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+.project-slide-media {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform: scale(var(--slide-scale, 1));
+  transform-origin: center center;
+}
+
+.project-slide-media img {
+  opacity: 1;
 }
 
 .project-scene-info-mark {
@@ -523,6 +708,11 @@ a.nav-link-mobile:focus-visible {
   color: var(--project-muted, #6b5e4f);
 }
 
+.project-stage-copy .project-scene-benefit-text {
+  /* Reserve room for longest Nahwerk benefit without clipping actions */
+  max-width: 28rem;
+}
+
 .project-scene-info--static {
   padding: 0;
   background: transparent;
@@ -541,22 +731,17 @@ a.nav-link-mobile:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .project-scene--base {
-    transform: none;
-  }
-
-  .project-scene--slash,
-  .project-scene--wave {
-    clip-path: none !important;
-    opacity: 1 !important;
-  }
-
-  .project-slash-wipe,
-  .project-wave-wipe {
-    display: none;
-  }
-
-  .project-scene-caption {
+  .project-copy-panel {
     transition: none;
   }
+
+  .project-slide,
+  .project-slide-media {
+    transform: none !important;
+  }
+
+  .project-slide-edge {
+    display: none;
+  }
 }
+
