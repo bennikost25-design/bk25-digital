@@ -4,8 +4,8 @@ import { useEffect, useRef } from "react";
 
 type UseScrollProgressOptions = {
   enabled?: boolean;
-  /** Number of scenes after the base scene (1 = two scenes, 2 = three scenes) */
-  revealCount?: number;
+  /** Total number of horizontal panels (image + text) */
+  panelCount?: number;
 };
 
 function clamp01(value: number) {
@@ -17,11 +17,32 @@ function smoothstep(edge0: number, edge1: number, x: number) {
   return t * t * (3 - 2 * t);
 }
 
-function syncActiveScene(node: HTMLElement, activeScene: number) {
-  const next = String(activeScene);
-  if (node.dataset.activeScene === next) return;
+/**
+ * Maps overall scroll progress (0–1) to continuous panel units (0 … panelCount-1)
+ * with dwell time at each panel and smooth transitions between them.
+ */
+function progressToSlideUnits(p: number, panelCount: number): number {
+  const transitions = Math.max(0, panelCount - 1);
+  if (transitions === 0) return 0;
 
-  node.dataset.activeScene = next;
+  let units = 0;
+  for (let i = 0; i < transitions; i++) {
+    const segStart = i / transitions;
+    const segEnd = (i + 1) / transitions;
+    const span = segEnd - segStart;
+    // Dwell at start/end of each segment; transition in the middle ~44%
+    const t0 = segStart + span * 0.28;
+    const t1 = segStart + span * 0.72;
+    units += smoothstep(t0, t1, p);
+  }
+  return units;
+}
+
+function syncActivePanel(node: HTMLElement, activePanel: number) {
+  const next = String(activePanel);
+  if (node.dataset.activePanel === next) return;
+
+  node.dataset.activePanel = next;
   node.querySelectorAll<HTMLElement>("[data-scene-panel]").forEach((panel) => {
     const active = panel.dataset.scenePanel === next;
     panel.setAttribute("aria-hidden", active ? "false" : "true");
@@ -34,31 +55,30 @@ function syncActiveScene(node: HTMLElement, activeScene: number) {
 }
 
 /**
- * Writes scroll progress onto the track via CSS variables + data-active-scene.
+ * Writes scroll progress onto the track via CSS variables + data-active-panel.
  * No React state updates per scroll tick.
  *
- * `--slide-shift` is a percentage string (e.g. "0%", "150%") driving
- * horizontal slide positions: scene i sits at i*100% base offset.
+ * `--slide-shift` is a percentage string driving horizontal panel positions:
+ * panel i sits at i * 100% base offset.
  */
 export function useScrollProgress<T extends HTMLElement = HTMLElement>(
   options: UseScrollProgressOptions = {},
 ) {
-  const { enabled = true, revealCount = 1 } = options;
+  const { enabled = true, panelCount = 2 } = options;
   const ref = useRef<T | null>(null);
 
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
 
+    const transitions = Math.max(0, panelCount - 1);
+
     const reset = () => {
       node.style.setProperty("--story-progress", "0");
       node.style.setProperty("--slide-shift", "0%");
       node.style.setProperty("--slide-motion", "0");
-      node.style.setProperty("--slide-scale", "1");
-      node.style.setProperty("--slide-seam", "100%");
-      node.style.setProperty("--scene-progress", "0%");
-      node.dataset.activeScene = "";
-      syncActiveScene(node, 0);
+      node.dataset.activePanel = "";
+      syncActivePanel(node, 0);
     };
 
     if (!enabled) {
@@ -77,47 +97,26 @@ export function useScrollProgress<T extends HTMLElement = HTMLElement>(
 
       node.style.setProperty("--story-progress", p.toFixed(4));
 
-      let slideUnits: number;
-      let activeScene: number;
-
-      if (revealCount >= 2) {
-        // Nahwerk: three scenes — continuous progress from r1 + r2 (0 → 2)
-        const r1 = smoothstep(0.18, 0.42, p);
-        const r2 = smoothstep(0.48, 0.72, p);
-        slideUnits = r1 + r2;
-        activeScene = slideUnits < 0.5 ? 0 : slideUnits < 1.5 ? 1 : 2;
-      } else {
-        // Wellenweg: two scenes — progress from r1 (0 → 1)
-        const r1 = smoothstep(0.22, 0.58, p);
-        slideUnits = r1;
-        activeScene = slideUnits < 0.5 ? 0 : 1;
-      }
-
-      const slideShiftPct = slideUnits * 100;
-      node.style.setProperty("--slide-shift", `${slideShiftPct.toFixed(3)}%`);
-
-      // Normalized 0–100% across the full scene range (for progress line)
-      const sceneProgressPct =
-        revealCount > 0 ? (slideUnits / revealCount) * 100 : 0;
+      const slideUnits = progressToSlideUnits(p, panelCount);
       node.style.setProperty(
-        "--scene-progress",
-        `${sceneProgressPct.toFixed(3)}%`,
+        "--slide-shift",
+        `${(slideUnits * 100).toFixed(3)}%`,
       );
 
-      // Peak mid-transition (0 at rest on a scene, 1 at halfway between scenes)
       const frac = slideUnits - Math.floor(slideUnits);
-      const inTransit = slideUnits > 0 && slideUnits < revealCount && frac > 0.001;
+      const inTransit =
+        slideUnits > 0.001 &&
+        slideUnits < transitions - 0.001 &&
+        frac > 0.001 &&
+        frac < 0.999;
       const motion = inTransit ? Math.sin(Math.PI * frac) : 0;
-      const isWellenweg = revealCount < 2;
-      const scaleMin = isWellenweg ? 0.988 : 0.985;
-      const scale = scaleMin + (1 - motion) * (1 - scaleMin);
-      const seamPct = inTransit ? (1 - frac) * 100 : 100;
-
       node.style.setProperty("--slide-motion", motion.toFixed(4));
-      node.style.setProperty("--slide-scale", scale.toFixed(4));
-      node.style.setProperty("--slide-seam", `${seamPct.toFixed(3)}%`);
 
-      syncActiveScene(node, activeScene);
+      const activePanel = Math.min(
+        panelCount - 1,
+        Math.max(0, Math.round(slideUnits)),
+      );
+      syncActivePanel(node, activePanel);
     };
 
     const onScroll = () => {
@@ -134,7 +133,7 @@ export function useScrollProgress<T extends HTMLElement = HTMLElement>(
       window.removeEventListener("resize", onScroll);
       if (frame) window.cancelAnimationFrame(frame);
     };
-  }, [enabled, revealCount]);
+  }, [enabled, panelCount]);
 
   return ref;
 }

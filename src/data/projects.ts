@@ -17,14 +17,12 @@ export type ProjectStoryFrame = {
   src: string;
   alt: string;
   caption: string;
-  /** Scene headline shown during sticky storytelling */
-  sceneLabel: string;
-  /** Short line describing what the screenshot shows */
-  sceneLine: string;
-  /** Package benefit label, e.g. „Vorteil im Komplettpaket“ */
-  benefitLabel: string;
-  benefitTitle: string;
-  benefitText: string;
+  /** Small label on the following text slide, e.g. „Komplettpaket · Umfang“ */
+  textLabel: string;
+  textTitle: string;
+  textBody: string;
+  /** Short scope hints shown on the text slide */
+  textPoints: string[];
 };
 
 export type Project = {
@@ -37,6 +35,7 @@ export type Project = {
   packageName: string;
   shortDescription: string;
   features: ProjectFeature[];
+  summaryTitle: string;
   theme: ProjectTheme;
   liveUrl: string | null;
   href: string;
@@ -59,21 +58,22 @@ export const projects: Project[] = [
     packageId: "komplett",
     packageName: "Komplettpaket",
     shortDescription:
-      "Ein umfangreicher digitaler Auftritt mit eigener visueller Identität, klarer Nutzerführung und einer emotionaleren Darstellung moderner Pflege.",
+      "Ein umfangreicher digitaler Auftritt mit klarer Nutzerführung und Raum für zusätzliche Zielgruppen, Inhalte und Funktionen.",
     features: [
       {
-        title: "Individuelle Startseite",
+        title: "Umfangreichere Inhaltsstruktur",
         description: "",
       },
       {
-        title: "Ausführliche Leistungsdarstellung",
+        title: "Bis zu zwölf Leistungen",
         description: "",
       },
       {
-        title: "Eigener Karrierebereich",
+        title: "Karriere, FAQ und Formulare",
         description: "",
       },
     ],
+    summaryTitle: "Mehr Umfang für zusätzliche Aufgaben.",
     theme: {
       background: "#F5F0E8",
       backgroundAlt: "#EBE4D8",
@@ -96,46 +96,52 @@ export const projects: Project[] = [
       "Bereiche für Angehörige und Bewerber mit eigener Priorität",
       "Ruhige, großzügige Bild- und Textflächen",
     ],
-    storyTrackHeight: "320svh",
+    storyTrackHeight: "420svh",
     storyFrames: [
       {
         id: "nahwerk-startseite",
         src: "/images/projects/bk25-nahwerk-startseite.jpg",
         alt: "Startseite des Konzeptprojekts Nahwerk Pflege in einer warmen, ruhigen Designwelt",
         caption: "Startseite",
-        sceneLabel: "01 — Individuelle Startseite",
-        sceneLine:
-          "Warmer Einstieg mit klarer Hauptaussage, persönlicher Bildsprache und gezielten Handlungsaufforderungen.",
-        benefitLabel: "Vorteil im Komplettpaket",
-        benefitTitle: "Eine Startseite mit eigener Identität",
-        benefitText:
-          "Gestaltung, Inhalte und Nutzerführung werden auf die Einrichtung abgestimmt. So entsteht kein ausgetauschtes Standardlayout, sondern ein eigenständiger erster Eindruck.",
+        textLabel: "Komplettpaket · Umfang",
+        textTitle: "Wenn die Website mehr leisten soll als nur informieren.",
+        textBody:
+          "Das Komplettpaket schafft Raum für zusätzliche Zielgruppen, Inhalte und Funktionen. Neben den zentralen Informationsseiten können unter anderem Karriere, FAQ, Kontaktformular und Kurzbewerbung als zusammenhängender Auftritt aufgebaut werden.",
+        textPoints: [
+          "zusätzliche Inhalts- und Funktionsbereiche",
+          "Kontaktformular und FAQ möglich",
+          "zwei gebündelte Korrekturrunden",
+        ],
       },
       {
         id: "nahwerk-leistungen",
         src: "/images/projects/bk25-nahwerk-leistungen.jpg",
         alt: "Ausführliche Leistungsseite des Konzeptprojekts Nahwerk Pflege",
         caption: "Leistungen",
-        sceneLabel: "02 — Verständliche Leistungen",
-        sceneLine:
-          "Gegliederte Pflegeleistungen mit zusätzlichen Erklärungen – Orientierung für Pflegebedürftige und Angehörige.",
-        benefitLabel: "Vorteil im Komplettpaket",
-        benefitTitle: "Mehr Raum für erklärungsbedürftige Angebote",
-        benefitText:
-          "Leistungen können ausführlicher gegliedert und verständlich erklärt werden. Das hilft Besuchern, schneller einzuordnen, welches Angebot zu ihrer Situation passt.",
+        textLabel: "Komplettpaket · Leistungen",
+        textTitle: "Mehr Angebote verständlich strukturieren.",
+        textBody:
+          "Für Einrichtungen mit einem größeren oder differenzierteren Angebot bietet das Komplettpaket mehr Raum zur Gliederung und Erklärung. Bis zu zwölf Leistungen können verständlich in die Nutzerführung eingebunden werden.",
+        textPoints: [
+          "bis zu zwölf Leistungen",
+          "mehr Raum für erklärende Inhalte",
+          "geeignet für differenziertere Angebote",
+        ],
       },
       {
         id: "nahwerk-karriere",
         src: "/images/projects/bk25-nahwerk-karriere.jpg",
         alt: "Karrierebereich des Konzeptprojekts Nahwerk Pflege",
         caption: "Karriere",
-        sceneLabel: "03 — Eigener Karrierebereich",
-        sceneLine:
-          "Arbeitgeberdarstellung mit Informationen für Bewerber, Arbeitsbedingungen und kurzer Bewerbungsführung.",
-        benefitLabel: "Vorteil im Komplettpaket",
-        benefitTitle: "Ein eigener Bereich für neue Mitarbeitende",
-        benefitText:
-          "Neben Kunden und Angehörigen können auch Bewerber gezielt angesprochen werden. Der zusätzliche Karrierebereich schafft Platz für Arbeitgeberprofil und einen verständlichen Bewerbungsweg.",
+        textLabel: "Komplettpaket · Karriere",
+        textTitle: "Personalgewinnung bekommt einen eigenen Bereich.",
+        textBody:
+          "Das Komplettpaket kann neben Kunden und Angehörigen auch Bewerber gezielt ansprechen. Ein eigener Karrierebereich bietet Platz für Arbeitgeberprofil, bis zu fünf Stellenprofile und einen kurzen Bewerbungsweg.",
+        textPoints: [
+          "eigener Karrierebereich",
+          "bis zu fünf Stellenprofile",
+          "Kurzbewerbungsformular",
+        ],
       },
     ],
   },
@@ -148,21 +154,22 @@ export const projects: Project[] = [
     packageId: "basis",
     packageName: "Basispaket",
     shortDescription:
-      "Ein kompakter und professioneller Auftritt, der trotz geringerem Umfang eine erkennbare Identität und eine klare mobile Nutzerführung besitzt.",
+      "Ein kompakter und professioneller Auftritt, der trotz geringerem Umfang individuell gestaltet ist und eine klare mobile Nutzerführung besitzt.",
     features: [
       {
-        title: "Klarer Einstieg",
+        title: "Individuelle responsive Gestaltung",
         description: "",
       },
       {
-        title: "Kompakte Leistungsdarstellung",
+        title: "Zentrale Informations- und Kontaktseiten",
         description: "",
       },
       {
-        title: "Individuelle Gestaltung",
+        title: "Bis zu acht Leistungen kompakt gebündelt",
         description: "",
       },
     ],
+    summaryTitle: "Alles Wesentliche in einem klaren Rahmen.",
     theme: {
       background: "#E8F2F5",
       backgroundAlt: "#D4E8EE",
@@ -185,33 +192,38 @@ export const projects: Project[] = [
       "Schnelle Orientierung zu Angebot und Kontakt",
       "Demo-fähige Umsetzung als lebender Prototyp",
     ],
-    storyTrackHeight: "225svh",
+    storyTrackHeight: "300svh",
     storyFrames: [
       {
         id: "wellenweg-startseite",
         src: "/images/projects/bk25-wellenweg-startseite.jpg",
         alt: "Startseite des Konzeptprojekts Wellenweg Pflege in blau-türkiser Gestaltung",
         caption: "Startseite",
-        sceneLabel: "01 — Klarer Einstieg",
-        sceneLine:
-          "Klare Hauptaussage, direkte Orientierung nach Bedarf und sichtbare Kontaktwege in individueller blau-türkiser Gestaltung.",
-        benefitLabel: "Vorteil im Basispaket",
-        benefitTitle: "Die wichtigsten Inhalte sofort im Blick",
-        benefitText:
-          "Der kompakte Aufbau konzentriert sich auf die Fragen und Kontaktwege, die für Besucher zuerst wichtig sind – individuell gestaltet und ohne unnötige Seitenfülle.",
+        textLabel: "Basispaket · Klarer Einstieg",
+        textTitle: "Professionell starten – ohne unnötigen Umfang.",
+        textBody:
+          "Wenn vor allem ein moderner Auftritt, eine verständliche Leistungsübersicht und direkte Kontaktwege benötigt werden, kann das Basispaket bereits vollständig ausreichen. Gestaltung und mobile Umsetzung bleiben individuell und professionell.",
+        textPoints: [
+          "individuelle Gestaltung",
+          "responsive Umsetzung",
+          "zentrale Seiten und Kontaktwege",
+        ],
       },
       {
         id: "wellenweg-leistungen",
         src: "/images/projects/bk25-wellenweg-leistungen.jpg",
         alt: "Fokussierte Leistungsseite des Konzeptprojekts Wellenweg Pflege",
         caption: "Leistungen",
-        sceneLabel: "02 — Konzentrierter Umfang",
-        sceneLine:
-          "Wesentliche Leistungsbereiche in verständlicher Gruppierung und kompakter Informationsstruktur.",
-        benefitLabel: "Vorteil im Basispaket",
-        benefitTitle: "Professionelle Orientierung mit klarem Umfang",
-        benefitText:
-          "Die zentralen Leistungen werden verständlich dargestellt, ohne den Auftritt unnötig zu vergrößern. So bleibt die Website übersichtlich und professionell.",
+        textLabel: "Basispaket · Leistungen",
+        textTitle:
+          "Ein überschaubares Angebot braucht keine unnötige Seitenfülle.",
+        textBody:
+          "Bis zu acht Leistungen können auf einer gemeinsamen Leistungsseite klar gebündelt werden. Für Einrichtungen mit einem überschaubaren Angebot entsteht so ein professioneller Auftritt, ohne zusätzliche Bereiche einzubauen, die nicht benötigt werden.",
+        textPoints: [
+          "bis zu acht Leistungen",
+          "gemeinsame Leistungsseite",
+          "kompakter und klarer Seitenumfang",
+        ],
       },
     ],
   },
@@ -219,4 +231,40 @@ export const projects: Project[] = [
 
 export function getProjectBySlug(slug: string): Project | undefined {
   return projects.find((project) => project.slug === slug);
+}
+
+/** Screenshot + following text slide for each story frame */
+export type StoryPanel =
+  | {
+      kind: "image";
+      id: string;
+      panelIndex: number;
+      frame: ProjectStoryFrame;
+    }
+  | {
+      kind: "text";
+      id: string;
+      panelIndex: number;
+      frame: ProjectStoryFrame;
+      tone: "light" | "dark";
+    };
+
+export function buildStoryPanels(frames: ProjectStoryFrame[]): StoryPanel[] {
+  const panels: StoryPanel[] = [];
+  frames.forEach((frame, frameIndex) => {
+    panels.push({
+      kind: "image",
+      id: `${frame.id}-image`,
+      panelIndex: panels.length,
+      frame,
+    });
+    panels.push({
+      kind: "text",
+      id: `${frame.id}-text`,
+      panelIndex: panels.length,
+      frame,
+      tone: frameIndex % 2 === 0 ? "light" : "dark",
+    });
+  });
+  return panels;
 }

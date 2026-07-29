@@ -46,7 +46,7 @@ export function HeroSection() {
             <Reveal delay={1}>
               <h1
                 id="hero-heading"
-                className="mt-7 max-w-[11.5ch] text-[clamp(2.4rem,8.2vw,5.6rem)] font-medium leading-[0.98] tracking-[-0.035em]"
+                className="mt-7 max-w-[11.5ch] text-[clamp(2.2rem,6.2vw,5.1rem)] font-medium leading-[0.98] tracking-[-0.035em]"
               >
                 Digitale Auftritte für Pflege,{" "}
                 <span className="font-accent text-white/90">

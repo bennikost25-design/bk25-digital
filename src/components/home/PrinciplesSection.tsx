@@ -44,7 +44,7 @@ function PrincipleBlock({
           </span>
           <h3
             className={cn(
-              "min-w-0 text-[clamp(1.65rem,3.2vw+0.6rem,2.85rem)] leading-[1.05] tracking-[-0.03em] transition-opacity duration-500",
+              "min-w-0 text-[clamp(1.55rem,2.8vw+0.5rem,2.65rem)] leading-[1.05] tracking-[-0.03em] transition-opacity duration-500",
               isInView ? "opacity-100" : "opacity-60",
             )}
           >
@@ -82,7 +82,7 @@ export function PrinciplesSection() {
               <SectionLabel>Die Haltung</SectionLabel>
               <h2
                 id="principles-heading"
-                className="mt-5 max-w-[14ch] text-[clamp(1.75rem,3.5vw,2.75rem)] leading-[1.08]"
+                className="mt-5 max-w-[14ch] text-[clamp(1.7rem,3.2vw,2.7rem)] leading-[1.08]"
               >
                 Eine gute Website muss nicht laut sein.
               </h2>
