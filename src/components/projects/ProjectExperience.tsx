@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   buildStoryPanels,
   type Project,
@@ -80,6 +80,11 @@ function ProjectActions({
       ) : null}
     </div>
   );
+}
+
+/** BK25 logoslash fixed to the left edge of an incoming panel */
+function PanelBoundary() {
+  return <div className="project-panel-boundary" aria-hidden="true" />;
 }
 
 function TextSlideContent({
@@ -210,16 +215,6 @@ function PanelChrome({
         ) : null}
       </div>
     </div>
-  );
-}
-
-function VioletWipe({ atPercent }: { atPercent: number }) {
-  return (
-    <div
-      className="project-panel-wipe"
-      style={{ "--slide-base": `${atPercent}%` } as React.CSSProperties}
-      aria-hidden="true"
-    />
   );
 }
 
@@ -356,15 +351,13 @@ function ProjectStickyStage({
               aria-hidden={panel.panelIndex !== 0}
               inert={panel.panelIndex !== 0 ? true : undefined}
             >
+              {panel.panelIndex > 0 ? <PanelBoundary /> : null}
               {panel.kind === "image" ? (
                 <ImagePanel panel={panel} priority={panel.panelIndex === 0} />
               ) : (
                 <TextSlideContent panel={panel} />
               )}
             </div>
-          ))}
-          {panels.slice(0, -1).map((_, index) => (
-            <VioletWipe key={`wipe-${index}`} atPercent={(index + 1) * 100} />
           ))}
         </div>
       </div>
@@ -409,6 +402,40 @@ function ProjectSnapStage({
     return () => observer.disconnect();
   }, [panels]);
 
+  useEffect(() => {
+    const root = scrollerRef.current;
+    if (!root) return;
+
+    root.style.setProperty("--slide-motion", "0");
+
+    let frame = 0;
+
+    const update = () => {
+      frame = 0;
+      const first = root.querySelector<HTMLElement>("[data-snap-panel]");
+      const panelWidth = first?.offsetWidth || root.clientWidth || 1;
+      const units = root.scrollLeft / panelWidth;
+      const frac = units - Math.floor(units);
+      const inTransit = frac > 0.008 && frac < 0.992;
+      root.style.setProperty("--slide-motion", inTransit ? "1" : "0");
+    };
+
+    const onScroll = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(update);
+    };
+
+    update();
+    root.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+
+    return () => {
+      root.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [panels]);
+
   const goTo = (index: number) => {
     const root = scrollerRef.current;
     if (!root) return;
@@ -436,24 +463,21 @@ function ProjectSnapStage({
         aria-label={`${project.title} Projektpräsentation`}
       >
         {panels.map((panel, index) => (
-          <Fragment key={panel.id}>
-            {index > 0 ? (
-              <div className="project-snap-wipe" aria-hidden="true" />
-            ) : null}
-            <div
-              data-snap-panel={String(index)}
-              className={cn(
-                "project-snap-item",
-                `project-snap-item--${panel.kind}`,
-              )}
-            >
-              {panel.kind === "image" ? (
-                <ImagePanel panel={panel} priority={index === 0} />
-              ) : (
-                <TextSlideContent panel={panel} />
-              )}
-            </div>
-          </Fragment>
+          <div
+            key={panel.id}
+            data-snap-panel={String(index)}
+            className={cn(
+              "project-snap-item",
+              `project-snap-item--${panel.kind}`,
+            )}
+          >
+            {index > 0 ? <PanelBoundary /> : null}
+            {panel.kind === "image" ? (
+              <ImagePanel panel={panel} priority={index === 0} />
+            ) : (
+              <TextSlideContent panel={panel} />
+            )}
+          </div>
         ))}
       </div>
 
@@ -487,24 +511,20 @@ function ProjectSnapStage({
 
 function ProjectStackStage({ panels }: { panels: StoryPanel[] }) {
   return (
-    <div className="project-stack-stage space-y-0 px-[var(--section-pad-x)] pb-8">
-      {panels.map((panel, index) => (
-        <div key={panel.id} className="project-stack-item">
-          {index > 0 ? (
-            <div className="project-stack-wipe" aria-hidden="true" />
-          ) : null}
-          <div
-            className={cn(
-              "project-stack-panel",
-              `project-stack-panel--${panel.kind}`,
-            )}
-          >
-            {panel.kind === "image" ? (
-              <ImagePanel panel={panel} />
-            ) : (
-              <TextSlideContent panel={panel} />
-            )}
-          </div>
+    <div className="project-stack-stage space-y-6 px-[var(--section-pad-x)] pb-8 md:space-y-8">
+      {panels.map((panel) => (
+        <div
+          key={panel.id}
+          className={cn(
+            "project-stack-panel",
+            `project-stack-panel--${panel.kind}`,
+          )}
+        >
+          {panel.kind === "image" ? (
+            <ImagePanel panel={panel} />
+          ) : (
+            <TextSlideContent panel={panel} />
+          )}
         </div>
       ))}
     </div>

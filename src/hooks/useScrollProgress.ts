@@ -71,8 +71,6 @@ export function useScrollProgress<T extends HTMLElement = HTMLElement>(
     const node = ref.current;
     if (!node) return;
 
-    const transitions = Math.max(0, panelCount - 1);
-
     const reset = () => {
       node.style.setProperty("--story-progress", "0");
       node.style.setProperty("--slide-shift", "0%");
@@ -104,13 +102,9 @@ export function useScrollProgress<T extends HTMLElement = HTMLElement>(
       );
 
       const frac = slideUnits - Math.floor(slideUnits);
-      const inTransit =
-        slideUnits > 0.001 &&
-        slideUnits < transitions - 0.001 &&
-        frac > 0.001 &&
-        frac < 0.999;
-      const motion = inTransit ? Math.sin(Math.PI * frac) : 0;
-      node.style.setProperty("--slide-motion", motion.toFixed(4));
+      // Binary visibility for logoslash: hidden at rest, visible while crossing
+      const inTransit = frac > 0.002 && frac < 0.998;
+      node.style.setProperty("--slide-motion", inTransit ? "1" : "0");
 
       const activePanel = Math.min(
         panelCount - 1,

@@ -100,8 +100,8 @@ export const projects: Project[] = [
     storyFrames: [
       {
         id: "nahwerk-startseite",
-        src: "/images/projects/bk25-nahwerk-startseite.jpg",
-        alt: "Startseite des Konzeptprojekts Nahwerk Pflege in einer warmen, ruhigen Designwelt",
+        src: "/images/projects/bk25-nahwerk-startseite-v2.jpg",
+        alt: "Redaktionelle Projektvorschau der Nahwerk-Startseite mit großer Desktopansicht, vollständiger Seitenminiatur und Detailausschnitten",
         caption: "Startseite",
         textLabel: "Komplettpaket · Umfang",
         textTitle: "Wenn die Website mehr leisten soll als nur informieren.",
@@ -115,8 +115,8 @@ export const projects: Project[] = [
       },
       {
         id: "nahwerk-leistungen",
-        src: "/images/projects/bk25-nahwerk-leistungen.jpg",
-        alt: "Ausführliche Leistungsseite des Konzeptprojekts Nahwerk Pflege",
+        src: "/images/projects/bk25-nahwerk-leistungen-v2.jpg",
+        alt: "Projektvorschau der Nahwerk-Leistungsseite mit vollständiger Seitenübersicht und detaillierter Leistungsdarstellung",
         caption: "Leistungen",
         textLabel: "Komplettpaket · Leistungen",
         textTitle: "Mehr Angebote verständlich strukturieren.",
@@ -130,8 +130,8 @@ export const projects: Project[] = [
       },
       {
         id: "nahwerk-karriere",
-        src: "/images/projects/bk25-nahwerk-karriere.jpg",
-        alt: "Karrierebereich des Konzeptprojekts Nahwerk Pflege",
+        src: "/images/projects/bk25-nahwerk-karriere-v2.jpg",
+        alt: "Projektvorschau des Nahwerk-Karrierebereichs mit vollständiger Seitenübersicht und Kurzbewerbungsformular",
         caption: "Karriere",
         textLabel: "Komplettpaket · Karriere",
         textTitle: "Personalgewinnung bekommt einen eigenen Bereich.",
@@ -196,8 +196,8 @@ export const projects: Project[] = [
     storyFrames: [
       {
         id: "wellenweg-startseite",
-        src: "/images/projects/bk25-wellenweg-startseite.jpg",
-        alt: "Startseite des Konzeptprojekts Wellenweg Pflege in blau-türkiser Gestaltung",
+        src: "/images/projects/bk25-wellenweg-startseite-v2.jpg",
+        alt: "Redaktionelle Projektvorschau der Wellenweg-Startseite mit großer Desktopansicht, vollständiger Seitenminiatur und Detailausschnitten",
         caption: "Startseite",
         textLabel: "Basispaket · Klarer Einstieg",
         textTitle: "Professionell starten – ohne unnötigen Umfang.",
@@ -211,8 +211,8 @@ export const projects: Project[] = [
       },
       {
         id: "wellenweg-leistungen",
-        src: "/images/projects/bk25-wellenweg-leistungen.jpg",
-        alt: "Fokussierte Leistungsseite des Konzeptprojekts Wellenweg Pflege",
+        src: "/images/projects/bk25-wellenweg-leistungen-v2.jpg",
+        alt: "Projektvorschau der Wellenweg-Leistungsseite mit vollständiger Seitenübersicht und kompakter Leistungsdarstellung",
         caption: "Leistungen",
         textLabel: "Basispaket · Leistungen",
         textTitle:
