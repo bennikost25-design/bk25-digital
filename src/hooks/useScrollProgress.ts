@@ -55,6 +55,25 @@ function syncActivePanel(node: HTMLElement, activePanel: number) {
 }
 
 /**
+ * Only the seam of the currently crossing panel may show a logoslash.
+ * Incoming panel index = floor(slideUnits) + 1 while in transit.
+ */
+function syncBoundaryVisibility(
+  node: HTMLElement,
+  slideUnits: number,
+  inTransit: boolean,
+) {
+  const incoming = Math.floor(slideUnits) + 1;
+  node.querySelectorAll<HTMLElement>(".project-panel-boundary").forEach((el) => {
+    const panel = el.closest<HTMLElement>("[data-scene-panel]");
+    const idx = Number(panel?.dataset.scenePanel ?? "-1");
+    const active = inTransit && idx === incoming;
+    if (el.dataset.active === (active ? "true" : "false")) return;
+    el.dataset.active = active ? "true" : "false";
+  });
+}
+
+/**
  * Writes scroll progress onto the track via CSS variables + data-active-panel.
  * No React state updates per scroll tick.
  *
@@ -77,6 +96,7 @@ export function useScrollProgress<T extends HTMLElement = HTMLElement>(
       node.style.setProperty("--slide-motion", "0");
       node.dataset.activePanel = "";
       syncActivePanel(node, 0);
+      syncBoundaryVisibility(node, 0, false);
     };
 
     if (!enabled) {
@@ -102,9 +122,10 @@ export function useScrollProgress<T extends HTMLElement = HTMLElement>(
       );
 
       const frac = slideUnits - Math.floor(slideUnits);
-      // Binary visibility for logoslash: hidden at rest, visible while crossing
-      const inTransit = frac > 0.002 && frac < 0.998;
+      // Hysteresis avoids end-of-slide flicker from tiny fractional noise
+      const inTransit = frac > 0.03 && frac < 0.97;
       node.style.setProperty("--slide-motion", inTransit ? "1" : "0");
+      syncBoundaryVisibility(node, slideUnits, inTransit);
 
       const activePanel = Math.min(
         panelCount - 1,
