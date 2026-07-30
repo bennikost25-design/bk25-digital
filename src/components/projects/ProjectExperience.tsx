@@ -137,7 +137,7 @@ function ImagePanel({
           src={panel.frame.src}
           alt={panel.frame.alt}
           fill
-          sizes="(min-width: 1100px) 70vw, 100vw"
+          sizes="(min-width: 1100px) 92vw, (min-width: 768px) 90vw, 100vw"
           className="project-image-photo"
           priority={priority}
         />

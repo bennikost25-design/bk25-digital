@@ -570,6 +570,10 @@ a.nav-link-mobile:focus-visible {
   BK25 slash: thin parallelogram over the shared cut.
   Element is wide enough for the slant; optical band ≈ 14–24px.
 */
+.project-scroll-track:not([data-split-ready="true"]) .project-stage-divider {
+  display: none;
+}
+
 .project-stage-divider {
   pointer-events: none;
   position: absolute;
@@ -594,6 +598,7 @@ a.nav-link-mobile:focus-visible {
   width: 100%;
   height: 100%;
   display: block;
+  box-sizing: border-box;
 }
 
 .project-image-panel-media {
@@ -607,8 +612,13 @@ a.nav-link-mobile:focus-visible {
   background: color-mix(in srgb, var(--project-base, #e8f2f5) 86%, #0f2a32 7%);
 }
 
+/* Sticky desktop: full graphic visible (stage is wider than 16:10 source art) */
+.project-scroll-track .project-image-panel {
+  padding: clamp(0.55rem, 1.4vw, 1.35rem);
+}
+
 .project-scroll-track .project-image-photo {
-  object-fit: cover;
+  object-fit: contain;
   object-position: center center;
 }
 
@@ -820,38 +830,45 @@ a.nav-link-mobile:focus-visible {
   width: 100%;
   scroll-snap-align: start;
   scroll-snap-stop: always;
-  min-height: min(72svh, 36rem);
+  min-height: 0;
   overflow: hidden;
 }
 
-/* Decorative edge slash — no wipe mask; keeps touch snap intact */
-.project-snap-item:not(:last-child)::after {
-  content: "";
-  pointer-events: none;
-  position: absolute;
-  z-index: 4;
-  top: 0;
-  bottom: 0;
-  right: 0;
-  width: calc(40px + 0.85rem);
-  transform: translate3d(50%, 0, 0);
-  background: var(--color-violet);
-  clip-path: polygon(40px 0, calc(40px + 0.85rem) 0, 0.85rem 100%, 0 100%);
-  opacity: 0.92;
-}
-
 .project-snap-item--image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: color-mix(in srgb, var(--project-base, #f5f0e8) 94%, #000 3%);
+  /* Room for chrome + controls; image stays fully visible */
+  min-height: 0;
+  padding-block: 0.15rem;
 }
 
+.project-snap-item--image .project-image-panel {
+  width: 100%;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+/*
+  Source art is 1600×1000 (16:10). Size by width and max-height so
+  portrait phones letterbox instead of cropping with cover + min-height.
+*/
 .project-snap-item--image .project-image-panel-media {
-  min-height: min(62svh, 30rem);
+  position: relative;
+  width: min(100%, calc(min(58svh, 26rem) * 16 / 10));
+  max-width: 100%;
   aspect-ratio: 16 / 10;
   height: auto;
+  min-height: 0;
+  margin-inline: auto;
 }
 
 .project-snap-item--image .project-image-photo {
-  object-fit: cover;
+  object-fit: contain;
   object-position: center center;
 }
 
@@ -935,16 +952,30 @@ a.nav-link-mobile:focus-visible {
   width: 100%;
 }
 
+.project-stack-panel--image {
+  display: flex;
+  justify-content: center;
+  background: color-mix(in srgb, var(--project-base, #f5f0e8) 94%, #000 3%);
+}
+
+.project-stack-panel--image .project-image-panel {
+  width: 100%;
+  height: auto;
+  padding: clamp(0.5rem, 2vw, 1rem);
+}
+
 .project-stack-panel--image .project-image-panel-media {
   position: relative;
-  width: 100%;
+  width: min(100%, calc(min(58svh, 28rem) * 16 / 10));
+  max-width: 100%;
   aspect-ratio: 16 / 10;
   height: auto;
   min-height: 0;
+  margin-inline: auto;
 }
 
 .project-stack-panel--image .project-image-photo {
-  object-fit: cover;
+  object-fit: contain;
   object-position: center center;
 }
 
@@ -961,6 +992,23 @@ a.nav-link-mobile:focus-visible {
 
 .project-stage-actions {
   flex-shrink: 0;
+}
+
+/* Mobile / tablet snap+stack: no stage slash (desktop sticky only) */
+@media (max-width: 1099px) {
+  .project-stage-divider {
+    display: none !important;
+  }
+}
+
+.project-snap-stage .project-stage-divider,
+.project-stack-stage .project-stage-divider,
+.project-snap-item::before,
+.project-snap-item::after {
+  display: none !important;
+  content: none !important;
+  background: none !important;
+  box-shadow: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
