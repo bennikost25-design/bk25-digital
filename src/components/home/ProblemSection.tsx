@@ -9,25 +9,25 @@ import { cn } from "@/lib/utils";
 const wordStyles = [
   {
     wrap: "md:ml-0 md:max-w-[90%]",
-    text: "text-[clamp(2.15rem,7.2vw,5.4rem)] text-left",
+    text: "text-[clamp(1.85rem,5.5vw,4.25rem)] text-left",
     color: "text-[var(--color-black)]",
     offset: "",
   },
   {
     wrap: "md:ml-auto md:max-w-[85%]",
-    text: "text-[clamp(1.95rem,6vw,4.6rem)] text-right",
+    text: "text-[clamp(1.7rem,4.8vw,3.7rem)] text-right",
     color: "text-[var(--color-violet-dark)]",
     offset: "md:translate-x-2",
   },
   {
     wrap: "md:ml-[8%] md:max-w-[92%]",
-    text: "text-[clamp(2.05rem,6.6vw,5.15rem)] text-left",
+    text: "text-[clamp(1.8rem,5.2vw,4.05rem)] text-left",
     color: "text-[var(--color-black)]",
     offset: "md:-translate-x-1",
   },
   {
     wrap: "md:ml-auto md:mr-[-2%] md:max-w-[95%]",
-    text: "text-[clamp(1.65rem,5.2vw,3.85rem)] text-right tracking-[-0.04em]",
+    text: "text-[clamp(1.45rem,4.2vw,3.15rem)] text-right tracking-[-0.04em]",
     color: "text-[var(--color-violet-dark)]",
     offset: "",
   },
@@ -86,7 +86,7 @@ export function ProblemSection() {
           <SectionLabel tone="light">Das Problem</SectionLabel>
           <h2
             id="problem-heading"
-            className="mt-4 max-w-[22ch] text-[clamp(1.75rem,3.6vw,2.95rem)] leading-[1.08]"
+            className="mt-4 max-w-[22ch] text-[clamp(1.65rem,3.2vw,2.7rem)] leading-[1.08]"
           >
             Viele Pflegeunternehmen leisten hervorragende Arbeit. Ihre Website
             zeigt davon oft zu wenig.
