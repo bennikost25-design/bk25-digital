@@ -16,9 +16,8 @@ type ProjectExperienceProps = {
   sectionId?: string;
 };
 
-/** Sticky divider choreography from this width up */
+/** Variant A split stage — only where 70/30 previews stay readable */
 const STICKY_MIN_WIDTH = 1100;
-/** Below this: vertical stack instead of horizontal snap */
 const SNAP_MIN_WIDTH = 360;
 
 type PresentationMode = "sticky" | "snap" | "stack";
@@ -82,7 +81,6 @@ function ProjectActions({
   );
 }
 
-/** Single stage logoslash — position from --project-divider-position */
 function StageDivider() {
   return <div className="project-stage-divider" aria-hidden="true" />;
 }
@@ -107,10 +105,12 @@ function TextSlideContent({
       )}
     >
       <div className="project-text-slide-inner">
-        <span className="project-text-slash" aria-hidden="true" />
-        <p className="project-text-label">{frame.textLabel}</p>
-        <HeadingTag className="project-text-title">{frame.textTitle}</HeadingTag>
-        <p className="project-text-body">{frame.textBody}</p>
+        <div className="project-text-primary">
+          <span className="project-text-slash" aria-hidden="true" />
+          <p className="project-text-label">{frame.textLabel}</p>
+          <HeadingTag className="project-text-title">{frame.textTitle}</HeadingTag>
+          <p className="project-text-body">{frame.textBody}</p>
+        </div>
         {frame.textPoints.length > 0 ? (
           <ul className="project-text-points">
             {frame.textPoints.map((point) => (
@@ -137,7 +137,7 @@ function ImagePanel({
           src={panel.frame.src}
           alt={panel.frame.alt}
           fill
-          sizes="100vw"
+          sizes="(min-width: 1100px) 70vw, 100vw"
           className="project-image-photo"
           priority={priority}
         />
@@ -260,6 +260,7 @@ export function ProjectExperience({
           style={{ height: project.storyTrackHeight }}
           data-active-panel="0"
           data-phase="rest"
+          data-dominant-side="left"
         >
           <ProjectStickyStage project={project} panels={panels} />
         </div>
@@ -339,19 +340,27 @@ function ProjectStickyStage({
             <div
               key={panel.id}
               data-scene-panel={String(panel.panelIndex)}
-              data-panel-role={panel.panelIndex === 0 ? "solo" : "hidden"}
-              className={cn(
-                "project-panel",
-                `project-panel--${panel.kind}`,
-              )}
+              data-slot={panel.panelIndex === 0 ? "left" : panel.panelIndex === 1 ? "right" : "none"}
+              data-emphasis={panel.panelIndex === 0 ? "dominant" : panel.panelIndex === 1 ? "preview" : "none"}
+              data-swap-role="static"
+              data-anchor={
+                panel.panelIndex === 0
+                  ? "left"
+                  : panel.panelIndex === 1
+                    ? "right"
+                    : "none"
+              }
+              className={cn("project-panel", `project-panel--${panel.kind}`)}
               aria-hidden={panel.panelIndex !== 0}
               inert={panel.panelIndex !== 0 ? true : undefined}
             >
-              {panel.kind === "image" ? (
-                <ImagePanel panel={panel} priority={panel.panelIndex === 0} />
-              ) : (
-                <TextSlideContent panel={panel} />
-              )}
+              <div className="project-panel-frame">
+                {panel.kind === "image" ? (
+                  <ImagePanel panel={panel} priority={panel.panelIndex === 0} />
+                ) : (
+                  <TextSlideContent panel={panel} />
+                )}
+              </div>
             </div>
           ))}
           <StageDivider />

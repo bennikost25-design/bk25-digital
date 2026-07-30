@@ -314,7 +314,7 @@ a.nav-link-mobile:focus-visible {
 
 
 /* ============================================================
-   Project story chapters — divider wipe + full-bleed panels
+   Project story — Variant A: 70/30 split + shared divider
    ============================================================ */
 .project-experience--nahwerk {
   background: var(--project-base, #f5f0e8);
@@ -326,9 +326,9 @@ a.nav-link-mobile:focus-visible {
 
 .project-scroll-track {
   overflow: visible;
-  --slide-shift: 0%;
+  --project-divider-x: 70%;
+  --preview-swap: 0;
   --slide-motion: 0;
-  --project-divider-position: 2.75%;
 }
 
 .project-sticky-stage {
@@ -354,7 +354,7 @@ a.nav-link-mobile:focus-visible {
   gap: 0.45rem 0.85rem;
   flex-shrink: 0;
   padding: 0.55rem clamp(0.85rem, 2.4vw, 1.75rem) 0.65rem;
-  z-index: 3;
+  z-index: 5;
   background: color-mix(in srgb, var(--project-base, #f5f0e8) 92%, #fff);
 }
 
@@ -464,11 +464,19 @@ a.nav-link-mobile:focus-visible {
   visibility: visible;
 }
 
+/*
+  Stage proportion ≈ 16/7 so the dominant 70% pane ≈ 16:10.
+  Capped by available sticky height under the chrome.
+*/
 .project-panel-viewport {
   position: relative;
   flex: 1 1 auto;
-  min-height: 0;
   width: 100%;
+  min-height: 0;
+  height: min(
+    calc(100svh - var(--header-height) - 3.75rem),
+    calc(100vw * 7 / 16)
+  );
   overflow: hidden;
   isolation: isolate;
   background: color-mix(in srgb, var(--project-base, #f5f0e8) 94%, #000 3%);
@@ -478,60 +486,100 @@ a.nav-link-mobile:focus-visible {
   background: color-mix(in srgb, var(--project-base, #e8f2f5) 92%, #000 2%);
 }
 
-/* Stacked full-bleed panels — visibility via role + shared divider clips */
+/* Before JS enhancement: do not mask everything away */
+.project-scroll-track:not([data-split-ready="true"]) .project-panel {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+}
+
+.project-scroll-track:not([data-split-ready="true"])
+  .project-panel[data-scene-panel="0"] {
+  visibility: visible;
+}
+
 .project-panel {
   position: absolute;
   inset: 0;
   margin: 0;
-  width: 100%;
-  height: 100%;
   z-index: 1;
   visibility: hidden;
   pointer-events: none;
-  clip-path: inset(0 0 0 0);
 }
 
-.project-panel[data-panel-role="solo"] {
+.project-scroll-track[data-split-ready="true"] .project-panel[data-slot="left"] {
   visibility: visible;
   z-index: 2;
-  clip-path: none;
+  /* 1px overlap under the slash avoids subpixel gaps */
+  clip-path: inset(0 calc(100% - var(--project-divider-x) - 1px) 0 0);
+}
+
+.project-scroll-track[data-split-ready="true"] .project-panel[data-slot="right"] {
+  visibility: visible;
+  z-index: 2;
+  clip-path: inset(0 0 0 calc(var(--project-divider-x) - 1px));
+}
+
+.project-scroll-track[data-split-ready="true"] .project-panel[data-slot="none"] {
+  visibility: hidden;
+  z-index: 0;
+}
+
+.project-panel[data-emphasis="dominant"] {
+  z-index: 3;
   pointer-events: auto;
 }
 
-.project-panel[data-panel-role="left"] {
-  visibility: visible;
-  z-index: 2;
-  /* Show from left edge up to the shared divider */
-  clip-path: inset(0 calc(100% - var(--project-divider-position)) 0 0);
+/* Fixed 70%-of-stage content frames — slash reveals, content does not reflow */
+.project-panel-frame {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 70%;
+  height: 100%;
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
-.project-panel[data-panel-role="right"] {
-  visibility: visible;
-  z-index: 2;
-  /* Show from the shared divider to the right edge */
-  clip-path: inset(0 0 0 var(--project-divider-position));
+.project-panel[data-anchor="left"] .project-panel-frame {
+  left: 0;
+  right: auto;
 }
 
-.project-panel[data-panel-role="hidden"] {
-  visibility: hidden;
-  z-index: 0;
-  clip-path: inset(0 0 0 100%);
+.project-panel[data-anchor="right"] .project-panel-frame {
+  right: 0;
+  left: auto;
 }
 
-/*
-  Permanent slim logoslash on the shared divider.
-  Positioned by the same CSS variable as the panel clips.
-*/
+/* Preview handoff inside the minor pane */
+.project-panel[data-slot="left"][data-swap-role="outgoing"] .project-panel-frame {
+  transform: translate3d(calc(var(--preview-swap) * -100%), 0, 0);
+}
+
+.project-panel[data-slot="left"][data-swap-role="incoming"] .project-panel-frame {
+  transform: translate3d(calc((var(--preview-swap) - 1) * 100%), 0, 0);
+}
+
+.project-panel[data-slot="right"][data-swap-role="outgoing"] .project-panel-frame {
+  transform: translate3d(calc(var(--preview-swap) * 100%), 0, 0);
+}
+
+.project-panel[data-slot="right"][data-swap-role="incoming"] .project-panel-frame {
+  transform: translate3d(calc((1 - var(--preview-swap)) * 100%), 0, 0);
+}
+
 .project-stage-divider {
   pointer-events: none;
   position: absolute;
   z-index: 8;
-  top: -5%;
-  bottom: -5%;
-  left: var(--project-divider-position, 2.75%);
-  width: clamp(0.22rem, 0.42vw, 0.38rem);
-  transform: translate3d(-50%, 0, 0) skewX(var(--slash-angle));
+  top: 0;
+  bottom: 0;
+  left: var(--project-divider-x, 70%);
+  /* Fixed-width parallelogram — avoids tall skewX spanning hundreds of px */
+  width: 0.72rem;
+  transform: translate3d(-50%, 0, 0);
   background: var(--color-violet);
+  clip-path: polygon(0.38rem 0, 100% 0, calc(100% - 0.38rem) 100%, 0 100%);
   box-shadow: none;
 }
 
@@ -539,97 +587,141 @@ a.nav-link-mobile:focus-visible {
   margin: 0;
   width: 100%;
   height: 100%;
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
+  display: block;
 }
 
 .project-image-panel-media {
   position: relative;
   width: 100%;
   height: 100%;
-  background: color-mix(in srgb, var(--project-base, #f5f0e8) 88%, #1a1612 6%);
+  background: color-mix(in srgb, var(--project-base, #f5f0e8) 86%, #1a1612 8%);
 }
 
 .project-experience--wellenweg .project-image-panel-media {
-  background: color-mix(in srgb, var(--project-base, #e8f2f5) 88%, #0f2a32 5%);
+  background: color-mix(in srgb, var(--project-base, #e8f2f5) 86%, #0f2a32 7%);
 }
 
-/* Desktop sticky: fill the clipped slide area as fully as possible */
 .project-scroll-track .project-image-photo {
   object-fit: cover;
   object-position: center center;
 }
 
-/* ---------- Text slides ---------- */
+.project-panel[data-anchor="left"] .project-image-photo {
+  object-position: center center;
+}
+
+.project-panel[data-anchor="right"] .project-image-photo {
+  object-position: center center;
+}
+
+/* Keep text clear of the thin divider seam */
+.project-panel[data-anchor="left"] .project-text-slide {
+  padding-right: clamp(1.5rem, 3vw, 2.75rem);
+}
+
+.project-panel[data-anchor="right"] .project-text-slide {
+  padding-left: clamp(1.5rem, 3vw, 2.75rem);
+}
+
+/* ---------- Text slides (70% editorial surface) ---------- */
 .project-text-slide {
   width: 100%;
   height: 100%;
   display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  padding:
-    clamp(1.75rem, 4.5vh, 3.75rem)
-    clamp(1.75rem, 5.5vw, 5.5rem)
-    clamp(1.75rem, 4.5vh, 3.75rem)
-    clamp(2rem, 5vw, 5rem);
+  align-items: stretch;
+  justify-content: stretch;
+  padding: clamp(1.75rem, 4vw, 4.5rem);
   box-sizing: border-box;
   overflow: hidden;
 }
 
 .project-text-slide-inner {
-  width: min(52rem, 100%);
-  max-height: 100%;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: clamp(1.25rem, 3vh, 2.5rem);
+  min-height: 0;
+}
+
+.project-panel[data-emphasis="dominant"] .project-text-slide-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(12rem, 0.9fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  column-gap: clamp(1.25rem, 3vw, 2.75rem);
+  row-gap: clamp(1rem, 2vh, 1.75rem);
+  align-content: stretch;
+}
+
+.project-panel[data-emphasis="dominant"] .project-text-primary {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.project-panel[data-emphasis="dominant"] .project-text-points {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: end;
+  max-width: none;
+}
+
+.project-text-primary {
+  min-width: 0;
 }
 
 .project-text-slash {
   display: block;
-  height: 1.05rem;
-  width: 0.3rem;
-  margin-bottom: clamp(1.1rem, 2.2vh, 1.75rem);
+  height: 1rem;
+  width: 0.28rem;
+  margin-bottom: clamp(0.9rem, 1.8vh, 1.4rem);
   background: var(--color-violet-dark);
   transform: skewX(var(--slash-angle));
 }
 
 .project-text-label {
   font-family: var(--font-heading), system-ui, sans-serif;
-  font-size: clamp(0.75rem, 0.85vw, 0.95rem);
+  font-size: clamp(0.78rem, 0.9vw, 1rem);
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--color-violet-dark);
 }
 
 .project-text-title {
-  margin-top: clamp(0.85rem, 1.6vh, 1.35rem);
+  margin-top: clamp(0.75rem, 1.5vh, 1.2rem);
   font-family: var(--font-heading), system-ui, sans-serif;
-  font-size: clamp(2.1rem, 4vw, 5rem);
+  font-size: clamp(2.5rem, 4vw, 5rem);
   font-weight: 600;
-  line-height: 1.04;
+  line-height: 1.02;
   letter-spacing: -0.035em;
   max-width: 16ch;
+  overflow-wrap: break-word;
+  hyphens: manual;
 }
 
 .project-text-body {
-  margin-top: clamp(1rem, 2vh, 1.6rem);
-  font-size: clamp(1.05rem, 1.45vw, 1.55rem);
-  line-height: 1.5;
-  max-width: 38rem;
+  margin-top: clamp(0.95rem, 1.8vh, 1.4rem);
+  font-size: clamp(1.08rem, 1.4vw, 1.5rem);
+  line-height: 1.45;
+  max-width: none;
 }
 
 .project-text-points {
-  margin-top: clamp(1.25rem, 2.4vh, 2rem);
+  margin: 0;
   padding: 0;
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: clamp(0.55rem, 1.2vh, 0.9rem);
+  gap: clamp(0.55rem, 1.2vh, 0.85rem);
+  max-width: 34rem;
 }
 
 .project-text-points li {
   display: flex;
   gap: 0.85rem;
   align-items: flex-start;
-  font-size: clamp(1rem, 1.15vw, 1.3rem);
+  font-size: clamp(0.98rem, 1.15vw, 1.25rem);
   line-height: 1.4;
 }
 
@@ -642,6 +734,38 @@ a.nav-link-mobile:focus-visible {
   background: currentColor;
   transform: skewX(var(--slash-angle));
   opacity: 0.7;
+}
+
+/* 30% preview: label + title only, parked inside the visible strip */
+.project-panel[data-emphasis="preview"] .project-text-body,
+.project-panel[data-emphasis="preview"] .project-text-points {
+  display: none;
+}
+
+.project-panel[data-emphasis="preview"] .project-text-slide {
+  padding: clamp(1.1rem, 2.2vw, 1.75rem);
+}
+
+.project-panel[data-emphasis="preview"] .project-text-slide-inner {
+  justify-content: center;
+  /* 30/70 of the frame ≈ the visible peek width */
+  width: 42.857%;
+  max-width: none;
+}
+
+.project-panel[data-emphasis="preview"][data-anchor="left"] .project-text-slide-inner {
+  margin-right: auto;
+  margin-left: 0;
+}
+
+.project-panel[data-emphasis="preview"][data-anchor="right"] .project-text-slide-inner {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+.project-panel[data-emphasis="preview"] .project-text-title {
+  font-size: clamp(1.25rem, 2.2vw, 2.1rem);
+  max-width: 11ch;
 }
 
 .project-text-slide--light {
@@ -702,7 +826,7 @@ a.nav-link-mobile:focus-visible {
   opacity: 1;
 }
 
-/* ---------- Mobile / tablet snap (full single slides) ---------- */
+/* ---------- Mobile / tablet snap ---------- */
 .project-snap-stage {
   overflow-x: clip;
 }
@@ -765,6 +889,11 @@ a.nav-link-mobile:focus-visible {
 
 .project-snap-item--text .project-text-body {
   font-size: clamp(1.02rem, 3.6vw, 1.2rem);
+  display: block;
+}
+
+.project-snap-item--text .project-text-points {
+  display: flex;
 }
 
 .project-snap-item--text .project-text-points li {
@@ -843,6 +972,11 @@ a.nav-link-mobile:focus-visible {
   padding: clamp(1.75rem, 5vw, 3rem) clamp(1.15rem, 4vw, 2.5rem);
 }
 
+.project-stack-panel--text .project-text-body,
+.project-stack-panel--text .project-text-points {
+  display: revert;
+}
+
 .project-stage-actions {
   flex-shrink: 0;
 }
@@ -853,12 +987,20 @@ a.nav-link-mobile:focus-visible {
   }
 
   .project-panel {
-    position: relative;
-    inset: auto;
+    position: relative !important;
+    inset: auto !important;
     visibility: visible !important;
     clip-path: none !important;
     pointer-events: auto !important;
     height: auto;
+  }
+
+  .project-panel-frame {
+    position: relative !important;
+    width: 100% !important;
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
   }
 
   .project-snap-scroller {

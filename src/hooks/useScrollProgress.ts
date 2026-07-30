@@ -8,10 +8,10 @@ type UseScrollProgressOptions = {
   panelCount?: number;
 };
 
-/** Resting slash inset from the left edge of the stage (%) */
-const DIVIDER_REST = 2.75;
-/** Slash position at the start of each transition, near the right edge (%) */
-const DIVIDER_START = 100 - DIVIDER_REST;
+const DIVIDER_MAJOR = 70;
+const DIVIDER_MINOR = 30;
+/** Share of each panel-to-panel unit spent moving the divider */
+const PHASE_DIVIDER = 0.8;
 
 function clamp01(value: number) {
   return Math.min(1, Math.max(0, value));
@@ -35,34 +35,64 @@ function progressToSlideUnits(p: number, panelCount: number): number {
     const segStart = i / transitions;
     const segEnd = (i + 1) / transitions;
     const span = segEnd - segStart;
-    const t0 = segStart + span * 0.28;
-    const t1 = segStart + span * 0.72;
+    const t0 = segStart + span * 0.26;
+    const t1 = segStart + span * 0.74;
     units += smoothstep(t0, t1, p);
   }
   return units;
 }
 
-type PanelRole = "solo" | "left" | "right" | "hidden";
+type SlotAssignment = {
+  slot: "left" | "right" | "none";
+  emphasis: "dominant" | "preview" | "none";
+  swapRole: "static" | "outgoing" | "incoming" | "none";
+  anchor: "left" | "right" | "none";
+};
 
-function syncPanelRoles(
+function clearAssignments(panelCount: number): SlotAssignment[] {
+  return Array.from({ length: panelCount }, () => ({
+    slot: "none",
+    emphasis: "none",
+    swapRole: "none",
+    anchor: "none",
+  }));
+}
+
+function dominantIndex(dividerX: number, leftIdx: number, rightIdx: number) {
+  return dividerX >= 50 ? leftIdx : rightIdx;
+}
+
+function applyAssignments(
   node: HTMLElement,
-  roles: Map<number, PanelRole>,
+  assignments: SlotAssignment[],
   activePanel: number,
 ) {
   node.querySelectorAll<HTMLElement>("[data-scene-panel]").forEach((panel) => {
     const idx = Number(panel.dataset.scenePanel ?? "-1");
-    const role = roles.get(idx) ?? "hidden";
-    if (panel.dataset.panelRole !== role) {
-      panel.dataset.panelRole = role;
-    }
+    const a = assignments[idx] ?? {
+      slot: "none",
+      emphasis: "none",
+      swapRole: "none",
+      anchor: "none",
+    };
 
-    const exposed = role === "solo" || role === "left" || role === "right";
-    panel.setAttribute("aria-hidden", exposed ? "false" : "true");
+    if (panel.dataset.slot !== a.slot) panel.dataset.slot = a.slot;
+    if (panel.dataset.emphasis !== a.emphasis) panel.dataset.emphasis = a.emphasis;
+    if (panel.dataset.swapRole !== a.swapRole) panel.dataset.swapRole = a.swapRole;
+    if (panel.dataset.anchor !== a.anchor) panel.dataset.anchor = a.anchor;
 
-    // Panels hold no focusable controls; keep inert only when fully hidden
-    if (exposed) {
+    const isDominant = a.emphasis === "dominant";
+    const isPreview = a.emphasis === "preview";
+
+    panel.setAttribute("aria-hidden", isDominant ? "false" : "true");
+    if (isDominant) {
       panel.removeAttribute("inert");
     } else {
+      panel.setAttribute("inert", "");
+    }
+
+    // Previews stay non-interactive even while visible
+    if (isPreview || a.slot === "none") {
       panel.setAttribute("inert", "");
     }
   });
@@ -74,9 +104,9 @@ function syncPanelRoles(
 }
 
 /**
- * Writes scroll progress as a shared divider position.
- * `--project-divider-position` drives both the logoslash and panel clip-paths.
- * No React state updates per scroll tick.
+ * Variant A: shared `--project-divider-x` drives slash + left/right clip geometry.
+ * Two phases per panel step — divider move (~80%), then preview handoff (~20%).
+ * No React state per scroll pixel.
  */
 export function useScrollProgress<T extends HTMLElement = HTMLElement>(
   options: UseScrollProgressOptions = {},
@@ -88,34 +118,75 @@ export function useScrollProgress<T extends HTMLElement = HTMLElement>(
     const node = ref.current;
     if (!node) return;
 
-    const lastPanel = Math.max(0, panelCount - 1);
+    const last = Math.max(0, panelCount - 1);
 
-    const applyRest = (activePanel: number) => {
+    const writeGeometry = (
+      dividerX: number,
+      previewSwap: number,
+      phase: string,
+    ) => {
+      node.style.setProperty("--project-divider-x", `${dividerX.toFixed(3)}%`);
+      node.style.setProperty("--preview-swap", previewSwap.toFixed(4));
       node.style.setProperty(
-        "--project-divider-position",
-        `${DIVIDER_REST}%`,
+        "--slide-motion",
+        phase === "rest" ? "0" : "1",
       );
-      node.style.setProperty("--slide-motion", "0");
-      node.dataset.phase = "rest";
-
-      const roles = new Map<number, PanelRole>();
-      for (let i = 0; i < panelCount; i++) {
-        roles.set(i, i === activePanel ? "solo" : "hidden");
-      }
-      syncPanelRoles(node, roles, activePanel);
+      node.dataset.phase = phase;
+      node.dataset.dominantSide = dividerX >= 50 ? "left" : "right";
     };
 
-    const reset = () => {
-      node.style.setProperty("--story-progress", "0");
-      node.style.setProperty("--slide-shift", "0%");
-      applyRest(0);
+    const restState = (active: number) => {
+      const assignments = clearAssignments(panelCount);
+      const even = active % 2 === 0;
+
+      if (even) {
+        const dividerX = DIVIDER_MAJOR;
+        const preview = active < last ? active + 1 : Math.max(0, active - 1);
+        assignments[active] = {
+          slot: "left",
+          emphasis: "dominant",
+          swapRole: "static",
+          anchor: "left",
+        };
+        if (preview !== active) {
+          assignments[preview] = {
+            slot: "right",
+            emphasis: "preview",
+            swapRole: "static",
+            anchor: "right",
+          };
+        }
+        writeGeometry(dividerX, 0, "rest");
+        applyAssignments(node, assignments, active);
+        return;
+      }
+
+      const dividerX = DIVIDER_MINOR;
+      const preview = active < last ? active + 1 : Math.max(0, active - 1);
+      assignments[active] = {
+        slot: "right",
+        emphasis: "dominant",
+        swapRole: "static",
+        anchor: "right",
+      };
+      if (preview !== active) {
+        assignments[preview] = {
+          slot: "left",
+          emphasis: "preview",
+          swapRole: "static",
+          anchor: "left",
+        };
+      }
+      writeGeometry(dividerX, 0, "rest");
+      applyAssignments(node, assignments, active);
     };
 
     if (!enabled) {
-      reset();
+      node.dataset.splitReady = "";
       return;
     }
 
+    node.dataset.splitReady = "true";
     let frame = 0;
 
     const update = () => {
@@ -124,50 +195,143 @@ export function useScrollProgress<T extends HTMLElement = HTMLElement>(
       const viewH = window.innerHeight || 1;
       const scrollable = Math.max(1, node.offsetHeight - viewH);
       const p = clamp01(-rect.top / scrollable);
-
       node.style.setProperty("--story-progress", p.toFixed(4));
 
-      const slideUnits = progressToSlideUnits(p, panelCount);
-      // Kept for compatibility / debugging; motion uses divider clips now
-      node.style.setProperty(
-        "--slide-shift",
-        `${(slideUnits * 100).toFixed(3)}%`,
-      );
+      const units = progressToSlideUnits(p, panelCount);
+      const floor = Math.min(last, Math.floor(units + 1e-7));
+      const frac = units - Math.floor(units);
 
-      const floor = Math.min(lastPanel, Math.floor(slideUnits + 1e-6));
-      const frac = slideUnits - Math.floor(slideUnits);
-      const inTransit =
-        floor < lastPanel && frac > 0.012 && frac < 0.988;
-
-      const activePanel = Math.min(
-        lastPanel,
-        Math.max(0, Math.round(slideUnits)),
-      );
-
-      if (!inTransit) {
-        applyRest(activePanel);
+      // Resting on a panel
+      if (frac < 0.008 || floor >= last) {
+        restState(Math.min(last, Math.round(units)));
         return;
       }
 
-      const leftIdx = floor;
-      const rightIdx = Math.min(lastPanel, floor + 1);
-      const divider =
-        DIVIDER_START - frac * (DIVIDER_START - DIVIDER_REST);
+      const from = floor;
+      const to = floor + 1;
+      const fromEven = from % 2 === 0;
+      const assignments = clearAssignments(panelCount);
 
-      node.style.setProperty(
-        "--project-divider-position",
-        `${divider.toFixed(3)}%`,
-      );
-      node.style.setProperty("--slide-motion", "1");
-      node.dataset.phase = "transit";
-
-      const roles = new Map<number, PanelRole>();
-      for (let i = 0; i < panelCount; i++) {
-        if (i === leftIdx) roles.set(i, "left");
-        else if (i === rightIdx) roles.set(i, "right");
-        else roles.set(i, "hidden");
+      if (frac <= PHASE_DIVIDER) {
+        const t = frac / PHASE_DIVIDER;
+        if (fromEven) {
+          // 70% → 30%: left=from shrinks, right=to grows
+          const dividerX = DIVIDER_MAJOR - t * (DIVIDER_MAJOR - DIVIDER_MINOR);
+          assignments[from] = {
+            slot: "left",
+            emphasis: dividerX >= 50 ? "dominant" : "preview",
+            swapRole: "static",
+            anchor: "left",
+          };
+          assignments[to] = {
+            slot: "right",
+            emphasis: dividerX < 50 ? "dominant" : "preview",
+            swapRole: "static",
+            anchor: "right",
+          };
+          writeGeometry(dividerX, 0, "divider");
+          applyAssignments(
+            node,
+            assignments,
+            dominantIndex(dividerX, from, to),
+          );
+        } else {
+          // 30% → 70%: left=to grows, right=from shrinks
+          const dividerX = DIVIDER_MINOR + t * (DIVIDER_MAJOR - DIVIDER_MINOR);
+          assignments[to] = {
+            slot: "left",
+            emphasis: dividerX >= 50 ? "dominant" : "preview",
+            swapRole: "static",
+            anchor: "left",
+          };
+          assignments[from] = {
+            slot: "right",
+            emphasis: dividerX < 50 ? "dominant" : "preview",
+            swapRole: "static",
+            anchor: "right",
+          };
+          writeGeometry(dividerX, 0, "divider");
+          applyAssignments(
+            node,
+            assignments,
+            dominantIndex(dividerX, to, from),
+          );
+        }
+        return;
       }
-      syncPanelRoles(node, roles, activePanel);
+
+      // Phase 2: preview handoff with divider locked
+      const swapT = (frac - PHASE_DIVIDER) / (1 - PHASE_DIVIDER);
+      const nextPreview = to + 1;
+
+      if (fromEven) {
+        const dividerX = DIVIDER_MINOR;
+        assignments[to] = {
+          slot: "right",
+          emphasis: "dominant",
+          swapRole: "static",
+          anchor: "right",
+        };
+
+        if (nextPreview <= last) {
+          assignments[from] = {
+            slot: "left",
+            emphasis: "preview",
+            swapRole: "outgoing",
+            anchor: "left",
+          };
+          assignments[nextPreview] = {
+            slot: "left",
+            emphasis: "preview",
+            swapRole: "incoming",
+            anchor: "left",
+          };
+          writeGeometry(dividerX, swapT, "swap");
+        } else {
+          // Last transition: keep previous panel in the minor slot
+          assignments[from] = {
+            slot: "left",
+            emphasis: "preview",
+            swapRole: "static",
+            anchor: "left",
+          };
+          writeGeometry(dividerX, 0, "swap");
+        }
+        applyAssignments(node, assignments, to);
+      } else {
+        const dividerX = DIVIDER_MAJOR;
+        assignments[to] = {
+          slot: "left",
+          emphasis: "dominant",
+          swapRole: "static",
+          anchor: "left",
+        };
+
+        if (nextPreview <= last) {
+          assignments[from] = {
+            slot: "right",
+            emphasis: "preview",
+            swapRole: "outgoing",
+            anchor: "right",
+          };
+          assignments[nextPreview] = {
+            slot: "right",
+            emphasis: "preview",
+            swapRole: "incoming",
+            anchor: "right",
+          };
+          writeGeometry(dividerX, swapT, "swap");
+        } else {
+          assignments[from] = {
+            slot: "right",
+            emphasis: "preview",
+            swapRole: "static",
+            anchor: "right",
+          };
+          writeGeometry(dividerX, 0, "swap");
+        }
+        applyAssignments(node, assignments, to);
+      }
     };
 
     const onScroll = () => {
