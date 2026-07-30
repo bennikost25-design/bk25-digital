@@ -314,7 +314,7 @@ a.nav-link-mobile:focus-visible {
 
 
 /* ============================================================
-   Project story chapters — full-bleed panels + logoslash boundary
+   Project story chapters — divider wipe + full-bleed panels
    ============================================================ */
 .project-experience--nahwerk {
   background: var(--project-base, #f5f0e8);
@@ -328,6 +328,7 @@ a.nav-link-mobile:focus-visible {
   overflow: visible;
   --slide-shift: 0%;
   --slide-motion: 0;
+  --project-divider-position: 2.75%;
 }
 
 .project-sticky-stage {
@@ -477,43 +478,61 @@ a.nav-link-mobile:focus-visible {
   background: color-mix(in srgb, var(--project-base, #e8f2f5) 92%, #000 2%);
 }
 
+/* Stacked full-bleed panels — visibility via role + shared divider clips */
 .project-panel {
   position: absolute;
   inset: 0;
   margin: 0;
   width: 100%;
   height: 100%;
-  transform: translate3d(
-    calc(var(--slide-base, 0%) - var(--slide-shift, 0%)),
-    0,
-    0
-  );
-  will-change: transform;
-  backface-visibility: hidden;
+  z-index: 1;
+  visibility: hidden;
+  pointer-events: none;
+  clip-path: inset(0 0 0 0);
+}
+
+.project-panel[data-panel-role="solo"] {
+  visibility: visible;
+  z-index: 2;
+  clip-path: none;
+  pointer-events: auto;
+}
+
+.project-panel[data-panel-role="left"] {
+  visibility: visible;
+  z-index: 2;
+  /* Show from left edge up to the shared divider */
+  clip-path: inset(0 calc(100% - var(--project-divider-position)) 0 0);
+}
+
+.project-panel[data-panel-role="right"] {
+  visibility: visible;
+  z-index: 2;
+  /* Show from the shared divider to the right edge */
+  clip-path: inset(0 0 0 var(--project-divider-position));
+}
+
+.project-panel[data-panel-role="hidden"] {
+  visibility: hidden;
+  z-index: 0;
+  clip-path: inset(0 0 0 100%);
 }
 
 /*
-  Slim logoslash on the left edge of the incoming panel only.
-  Visibility is gated per-boundary via data-active — never all at once.
+  Permanent slim logoslash on the shared divider.
+  Positioned by the same CSS variable as the panel clips.
 */
-.project-panel-boundary {
+.project-stage-divider {
   pointer-events: none;
   position: absolute;
   z-index: 8;
-  top: -6%;
-  bottom: -6%;
-  left: 0;
+  top: -5%;
+  bottom: -5%;
+  left: var(--project-divider-position, 2.75%);
   width: clamp(0.22rem, 0.42vw, 0.38rem);
   transform: translate3d(-50%, 0, 0) skewX(var(--slash-angle));
-  opacity: 0;
-  visibility: hidden;
   background: var(--color-violet);
   box-shadow: none;
-}
-
-.project-panel-boundary[data-active="true"] {
-  opacity: 1;
-  visibility: visible;
 }
 
 .project-image-panel {
@@ -529,11 +548,17 @@ a.nav-link-mobile:focus-visible {
   position: relative;
   width: 100%;
   height: 100%;
-  background: color-mix(in srgb, var(--project-base, #f5f0e8) 96%, #000 2%);
+  background: color-mix(in srgb, var(--project-base, #f5f0e8) 88%, #1a1612 6%);
 }
 
 .project-experience--wellenweg .project-image-panel-media {
-  background: color-mix(in srgb, var(--project-base, #e8f2f5) 95%, #000 2%);
+  background: color-mix(in srgb, var(--project-base, #e8f2f5) 88%, #0f2a32 5%);
+}
+
+/* Desktop sticky: fill the clipped slide area as fully as possible */
+.project-scroll-track .project-image-photo {
+  object-fit: cover;
+  object-position: center center;
 }
 
 /* ---------- Text slides ---------- */
@@ -542,74 +567,78 @@ a.nav-link-mobile:focus-visible {
   height: 100%;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: clamp(1.5rem, 4vw, 3.5rem) clamp(1.25rem, 5vw, 4rem);
+  justify-content: flex-start;
+  padding:
+    clamp(1.75rem, 4.5vh, 3.75rem)
+    clamp(1.75rem, 5.5vw, 5.5rem)
+    clamp(1.75rem, 4.5vh, 3.75rem)
+    clamp(2rem, 5vw, 5rem);
   box-sizing: border-box;
   overflow: hidden;
 }
 
 .project-text-slide-inner {
-  width: min(42rem, 100%);
+  width: min(52rem, 100%);
   max-height: 100%;
 }
 
 .project-text-slash {
   display: block;
-  height: 0.9rem;
-  width: 0.28rem;
-  margin-bottom: 1.1rem;
+  height: 1.05rem;
+  width: 0.3rem;
+  margin-bottom: clamp(1.1rem, 2.2vh, 1.75rem);
   background: var(--color-violet-dark);
   transform: skewX(var(--slash-angle));
 }
 
 .project-text-label {
   font-family: var(--font-heading), system-ui, sans-serif;
-  font-size: 0.72rem;
+  font-size: clamp(0.75rem, 0.85vw, 0.95rem);
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--color-violet-dark);
 }
 
 .project-text-title {
-  margin-top: 0.85rem;
+  margin-top: clamp(0.85rem, 1.6vh, 1.35rem);
   font-family: var(--font-heading), system-ui, sans-serif;
-  font-size: clamp(1.45rem, 3.2vw, 2.85rem);
+  font-size: clamp(2.1rem, 4vw, 5rem);
   font-weight: 600;
-  line-height: 1.08;
-  letter-spacing: -0.03em;
-  max-width: 18ch;
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+  max-width: 16ch;
 }
 
 .project-text-body {
-  margin-top: 1rem;
-  font-size: clamp(0.92rem, 1.4vw, 1.08rem);
-  line-height: 1.55;
+  margin-top: clamp(1rem, 2vh, 1.6rem);
+  font-size: clamp(1.05rem, 1.45vw, 1.55rem);
+  line-height: 1.5;
   max-width: 38rem;
 }
 
 .project-text-points {
-  margin-top: 1.35rem;
+  margin-top: clamp(1.25rem, 2.4vh, 2rem);
   padding: 0;
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: clamp(0.55rem, 1.2vh, 0.9rem);
 }
 
 .project-text-points li {
   display: flex;
-  gap: 0.7rem;
+  gap: 0.85rem;
   align-items: flex-start;
-  font-size: 0.88rem;
+  font-size: clamp(1rem, 1.15vw, 1.3rem);
   line-height: 1.4;
 }
 
 .project-text-points li::before {
   content: "";
   flex-shrink: 0;
-  margin-top: 0.28rem;
-  height: 0.7rem;
-  width: 0.18rem;
+  margin-top: 0.35rem;
+  height: 0.85rem;
+  width: 0.2rem;
   background: currentColor;
   transform: skewX(var(--slash-angle));
   opacity: 0.7;
@@ -661,16 +690,133 @@ a.nav-link-mobile:focus-visible {
 }
 
 .project-text-slide--dark .project-text-body {
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .project-text-slide--dark .project-text-points li {
-  color: rgba(255, 255, 255, 0.88);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .project-text-slide--dark .project-text-points li::before {
   background: var(--color-violet);
   opacity: 1;
+}
+
+/* ---------- Mobile / tablet snap (full single slides) ---------- */
+.project-snap-stage {
+  overflow-x: clip;
+}
+
+.project-snap-scroller {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  outline: none;
+}
+
+.project-snap-scroller:focus-visible {
+  outline: 2px solid var(--color-violet);
+  outline-offset: 3px;
+}
+
+.project-snap-item {
+  position: relative;
+  flex: 0 0 100%;
+  width: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  min-height: min(72svh, 36rem);
+  overflow: hidden;
+}
+
+.project-snap-item--image {
+  background: color-mix(in srgb, var(--project-base, #f5f0e8) 94%, #000 3%);
+}
+
+.project-snap-item--image .project-image-panel-media {
+  min-height: min(62svh, 30rem);
+  aspect-ratio: 16 / 10;
+  height: auto;
+}
+
+.project-snap-item--image .project-image-photo {
+  object-fit: cover;
+  object-position: center center;
+}
+
+.project-snap-item--text {
+  min-height: auto;
+}
+
+.project-snap-item--text .project-text-slide {
+  min-height: min(68svh, 34rem);
+  height: auto;
+  padding: clamp(1.5rem, 5vw, 2.75rem) clamp(1.15rem, 4vw, 2rem);
+}
+
+.project-snap-item--text .project-text-title {
+  font-size: clamp(1.85rem, 7vw, 2.75rem);
+}
+
+.project-snap-item--text .project-text-body {
+  font-size: clamp(1.02rem, 3.6vw, 1.2rem);
+}
+
+.project-snap-item--text .project-text-points li {
+  font-size: clamp(0.95rem, 3.2vw, 1.1rem);
+}
+
+.project-snap-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.project-snap-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  border: 1px solid color-mix(in srgb, var(--project-text, #1a1612) 22%, transparent);
+  background: transparent;
+  color: var(--project-text, #1a1612);
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.project-snap-btn:hover:not(:disabled) {
+  border-color: var(--color-violet-dark);
+  background: color-mix(in srgb, var(--color-violet) 12%, transparent);
+}
+
+.project-snap-btn:focus-visible {
+  outline: 2px solid var(--color-violet);
+  outline-offset: 3px;
+}
+
+.project-snap-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.project-snap-status {
+  font-family: var(--font-heading), system-ui, sans-serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  font-variant-numeric: tabular-nums;
+  color: var(--project-muted, #6b5e4f);
+  min-width: 4.5rem;
+  text-align: center;
 }
 
 /* ---------- Reduced-motion vertical stack ---------- */
@@ -686,6 +832,11 @@ a.nav-link-mobile:focus-visible {
   min-height: 0;
 }
 
+.project-stack-panel--image .project-image-photo {
+  object-fit: cover;
+  object-position: center center;
+}
+
 .project-stack-panel--text .project-text-slide {
   height: auto;
   min-height: 0;
@@ -697,12 +848,21 @@ a.nav-link-mobile:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .project-panel {
-    transform: none !important;
+  .project-stage-divider {
+    display: none;
   }
 
-  .project-panel-boundary {
-    display: none;
+  .project-panel {
+    position: relative;
+    inset: auto;
+    visibility: visible !important;
+    clip-path: none !important;
+    pointer-events: auto !important;
+    height: auto;
+  }
+
+  .project-snap-scroller {
+    scroll-behavior: auto;
   }
 }
 
@@ -718,13 +878,5 @@ a.nav-link-mobile:focus-visible {
 
   .project-panel-chrome-right > :not(.project-frame-scene) {
     display: none;
-  }
-
-  .project-text-title {
-    font-size: clamp(1.35rem, 6.5vw, 1.85rem);
-  }
-
-  .project-text-body {
-    font-size: 0.92rem;
   }
 }

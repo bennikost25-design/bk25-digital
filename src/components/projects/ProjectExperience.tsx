@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   buildStoryPanels,
   type Project,
@@ -16,21 +16,46 @@ type ProjectExperienceProps = {
   sectionId?: string;
 };
 
-type PresentationMode = "sticky" | "stack";
+/** Sticky divider choreography from this width up */
+const STICKY_MIN_WIDTH = 1100;
+/** Below this: vertical stack instead of horizontal snap */
+const SNAP_MIN_WIDTH = 360;
+
+type PresentationMode = "sticky" | "snap" | "stack";
 
 function usePresentationMode(): PresentationMode {
   const [mode, setMode] = useState<PresentationMode>("stack");
 
   useEffect(() => {
+    const desktop = window.matchMedia(`(min-width: ${STICKY_MIN_WIDTH}px)`);
+    const snap = window.matchMedia(`(min-width: ${SNAP_MIN_WIDTH}px)`);
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
     const sync = () => {
-      setMode(motion.matches ? "stack" : "sticky");
+      if (motion.matches) {
+        setMode("stack");
+        return;
+      }
+      if (desktop.matches) {
+        setMode("sticky");
+        return;
+      }
+      if (snap.matches) {
+        setMode("snap");
+        return;
+      }
+      setMode("stack");
     };
 
     sync();
+    desktop.addEventListener("change", sync);
+    snap.addEventListener("change", sync);
     motion.addEventListener("change", sync);
-    return () => motion.removeEventListener("change", sync);
+    return () => {
+      desktop.removeEventListener("change", sync);
+      snap.removeEventListener("change", sync);
+      motion.removeEventListener("change", sync);
+    };
   }, []);
 
   return mode;
@@ -57,9 +82,9 @@ function ProjectActions({
   );
 }
 
-/** Thin BK25 logoslash fixed to the left edge of an incoming panel */
-function PanelBoundary() {
-  return <div className="project-panel-boundary" aria-hidden="true" />;
+/** Single stage logoslash — position from --project-divider-position */
+function StageDivider() {
+  return <div className="project-stage-divider" aria-hidden="true" />;
 }
 
 function TextSlideContent({
@@ -113,7 +138,7 @@ function ImagePanel({
           alt={panel.frame.alt}
           fill
           sizes="100vw"
-          className="object-contain object-center"
+          className="project-image-photo"
           priority={priority}
         />
       </div>
@@ -131,7 +156,6 @@ function PanelChrome({
   project: Project;
   panelIndex: number;
   panelCount: number;
-  /** When true, panel number is driven by data-active-panel CSS */
   liveCounter?: boolean;
   className?: string;
 }) {
@@ -235,9 +259,12 @@ export function ProjectExperience({
           className="project-scroll-track relative"
           style={{ height: project.storyTrackHeight }}
           data-active-panel="0"
+          data-phase="rest"
         >
           <ProjectStickyStage project={project} panels={panels} />
         </div>
+      ) : mode === "snap" ? (
+        <ProjectSnapStage project={project} panels={panels} />
       ) : (
         <ProjectStackStage panels={panels} />
       )}
@@ -312,19 +339,14 @@ function ProjectStickyStage({
             <div
               key={panel.id}
               data-scene-panel={String(panel.panelIndex)}
+              data-panel-role={panel.panelIndex === 0 ? "solo" : "hidden"}
               className={cn(
                 "project-panel",
                 `project-panel--${panel.kind}`,
               )}
-              style={
-                {
-                  "--slide-base": `${panel.panelIndex * 100}%`,
-                } as React.CSSProperties
-              }
               aria-hidden={panel.panelIndex !== 0}
               inert={panel.panelIndex !== 0 ? true : undefined}
             >
-              {panel.panelIndex > 0 ? <PanelBoundary /> : null}
               {panel.kind === "image" ? (
                 <ImagePanel panel={panel} priority={panel.panelIndex === 0} />
               ) : (
@@ -332,7 +354,121 @@ function ProjectStickyStage({
               )}
             </div>
           ))}
+          <StageDivider />
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ProjectSnapStage({
+  project,
+  panels,
+}: {
+  project: Project;
+  panels: StoryPanel[];
+}) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(0);
+  const panelCount = panels.length;
+
+  useEffect(() => {
+    const root = scrollerRef.current;
+    if (!root) return;
+
+    const items = Array.from(
+      root.querySelectorAll<HTMLElement>("[data-snap-panel]"),
+    );
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (!visible) return;
+        const idx = Number(
+          (visible.target as HTMLElement).dataset.snapPanel ?? "0",
+        );
+        setActive(idx);
+      },
+      { root, threshold: [0.55, 0.7] },
+    );
+
+    items.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [panels]);
+
+  const goTo = (index: number) => {
+    const root = scrollerRef.current;
+    if (!root) return;
+    const target = root.querySelector<HTMLElement>(
+      `[data-snap-panel="${index}"]`,
+    );
+    target?.scrollIntoView({
+      behavior: "smooth",
+      inline: "start",
+      block: "nearest",
+    });
+  };
+
+  return (
+    <div className="project-snap-stage px-[var(--section-pad-x)] pb-8">
+      <PanelChrome
+        project={project}
+        panelIndex={active}
+        panelCount={panelCount}
+        className="project-panel-chrome--snap mb-3"
+      />
+
+      <div
+        ref={scrollerRef}
+        className="project-snap-scroller"
+        tabIndex={0}
+        role="region"
+        aria-roledescription="Karussell"
+        aria-label={`${project.title} Projektpräsentation`}
+      >
+        {panels.map((panel, index) => (
+          <div
+            key={panel.id}
+            data-snap-panel={String(index)}
+            className={cn(
+              "project-snap-item",
+              `project-snap-item--${panel.kind}`,
+            )}
+          >
+            {panel.kind === "image" ? (
+              <ImagePanel panel={panel} priority={index === 0} />
+            ) : (
+              <TextSlideContent panel={panel} />
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="project-snap-controls mt-4">
+        <button
+          type="button"
+          className="project-snap-btn"
+          onClick={() => goTo(Math.max(0, active - 1))}
+          disabled={active <= 0}
+          aria-label="Vorheriges Panel"
+        >
+          ←
+        </button>
+        <p className="project-snap-status" aria-live="polite">
+          {String(active + 1).padStart(2, "0")} /{" "}
+          {String(panelCount).padStart(2, "0")}
+        </p>
+        <button
+          type="button"
+          className="project-snap-btn"
+          onClick={() => goTo(Math.min(panelCount - 1, active + 1))}
+          disabled={active >= panelCount - 1}
+          aria-label="Nächstes Panel"
+        >
+          →
+        </button>
       </div>
     </div>
   );

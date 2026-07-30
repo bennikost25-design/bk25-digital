@@ -8,6 +8,11 @@ type UseScrollProgressOptions = {
   panelCount?: number;
 };
 
+/** Resting slash inset from the left edge of the stage (%) */
+const DIVIDER_REST = 2.75;
+/** Slash position at the start of each transition, near the right edge (%) */
+const DIVIDER_START = 100 - DIVIDER_REST;
+
 function clamp01(value: number) {
   return Math.min(1, Math.max(0, value));
 }
@@ -30,7 +35,6 @@ function progressToSlideUnits(p: number, panelCount: number): number {
     const segStart = i / transitions;
     const segEnd = (i + 1) / transitions;
     const span = segEnd - segStart;
-    // Dwell at start/end of each segment; transition in the middle ~44%
     const t0 = segStart + span * 0.28;
     const t1 = segStart + span * 0.72;
     units += smoothstep(t0, t1, p);
@@ -38,47 +42,41 @@ function progressToSlideUnits(p: number, panelCount: number): number {
   return units;
 }
 
-function syncActivePanel(node: HTMLElement, activePanel: number) {
-  const next = String(activePanel);
-  if (node.dataset.activePanel === next) return;
+type PanelRole = "solo" | "left" | "right" | "hidden";
 
-  node.dataset.activePanel = next;
+function syncPanelRoles(
+  node: HTMLElement,
+  roles: Map<number, PanelRole>,
+  activePanel: number,
+) {
   node.querySelectorAll<HTMLElement>("[data-scene-panel]").forEach((panel) => {
-    const active = panel.dataset.scenePanel === next;
-    panel.setAttribute("aria-hidden", active ? "false" : "true");
-    if (active) {
+    const idx = Number(panel.dataset.scenePanel ?? "-1");
+    const role = roles.get(idx) ?? "hidden";
+    if (panel.dataset.panelRole !== role) {
+      panel.dataset.panelRole = role;
+    }
+
+    const exposed = role === "solo" || role === "left" || role === "right";
+    panel.setAttribute("aria-hidden", exposed ? "false" : "true");
+
+    // Panels hold no focusable controls; keep inert only when fully hidden
+    if (exposed) {
       panel.removeAttribute("inert");
     } else {
       panel.setAttribute("inert", "");
     }
   });
+
+  const next = String(activePanel);
+  if (node.dataset.activePanel !== next) {
+    node.dataset.activePanel = next;
+  }
 }
 
 /**
- * Only the seam of the currently crossing panel may show a logoslash.
- * Incoming panel index = floor(slideUnits) + 1 while in transit.
- */
-function syncBoundaryVisibility(
-  node: HTMLElement,
-  slideUnits: number,
-  inTransit: boolean,
-) {
-  const incoming = Math.floor(slideUnits) + 1;
-  node.querySelectorAll<HTMLElement>(".project-panel-boundary").forEach((el) => {
-    const panel = el.closest<HTMLElement>("[data-scene-panel]");
-    const idx = Number(panel?.dataset.scenePanel ?? "-1");
-    const active = inTransit && idx === incoming;
-    if (el.dataset.active === (active ? "true" : "false")) return;
-    el.dataset.active = active ? "true" : "false";
-  });
-}
-
-/**
- * Writes scroll progress onto the track via CSS variables + data-active-panel.
+ * Writes scroll progress as a shared divider position.
+ * `--project-divider-position` drives both the logoslash and panel clip-paths.
  * No React state updates per scroll tick.
- *
- * `--slide-shift` is a percentage string driving horizontal panel positions:
- * panel i sits at i * 100% base offset.
  */
 export function useScrollProgress<T extends HTMLElement = HTMLElement>(
   options: UseScrollProgressOptions = {},
@@ -90,13 +88,27 @@ export function useScrollProgress<T extends HTMLElement = HTMLElement>(
     const node = ref.current;
     if (!node) return;
 
+    const lastPanel = Math.max(0, panelCount - 1);
+
+    const applyRest = (activePanel: number) => {
+      node.style.setProperty(
+        "--project-divider-position",
+        `${DIVIDER_REST}%`,
+      );
+      node.style.setProperty("--slide-motion", "0");
+      node.dataset.phase = "rest";
+
+      const roles = new Map<number, PanelRole>();
+      for (let i = 0; i < panelCount; i++) {
+        roles.set(i, i === activePanel ? "solo" : "hidden");
+      }
+      syncPanelRoles(node, roles, activePanel);
+    };
+
     const reset = () => {
       node.style.setProperty("--story-progress", "0");
       node.style.setProperty("--slide-shift", "0%");
-      node.style.setProperty("--slide-motion", "0");
-      node.dataset.activePanel = "";
-      syncActivePanel(node, 0);
-      syncBoundaryVisibility(node, 0, false);
+      applyRest(0);
     };
 
     if (!enabled) {
@@ -116,22 +128,46 @@ export function useScrollProgress<T extends HTMLElement = HTMLElement>(
       node.style.setProperty("--story-progress", p.toFixed(4));
 
       const slideUnits = progressToSlideUnits(p, panelCount);
+      // Kept for compatibility / debugging; motion uses divider clips now
       node.style.setProperty(
         "--slide-shift",
         `${(slideUnits * 100).toFixed(3)}%`,
       );
 
+      const floor = Math.min(lastPanel, Math.floor(slideUnits + 1e-6));
       const frac = slideUnits - Math.floor(slideUnits);
-      // Hysteresis avoids end-of-slide flicker from tiny fractional noise
-      const inTransit = frac > 0.03 && frac < 0.97;
-      node.style.setProperty("--slide-motion", inTransit ? "1" : "0");
-      syncBoundaryVisibility(node, slideUnits, inTransit);
+      const inTransit =
+        floor < lastPanel && frac > 0.012 && frac < 0.988;
 
       const activePanel = Math.min(
-        panelCount - 1,
+        lastPanel,
         Math.max(0, Math.round(slideUnits)),
       );
-      syncActivePanel(node, activePanel);
+
+      if (!inTransit) {
+        applyRest(activePanel);
+        return;
+      }
+
+      const leftIdx = floor;
+      const rightIdx = Math.min(lastPanel, floor + 1);
+      const divider =
+        DIVIDER_START - frac * (DIVIDER_START - DIVIDER_REST);
+
+      node.style.setProperty(
+        "--project-divider-position",
+        `${divider.toFixed(3)}%`,
+      );
+      node.style.setProperty("--slide-motion", "1");
+      node.dataset.phase = "transit";
+
+      const roles = new Map<number, PanelRole>();
+      for (let i = 0; i < panelCount; i++) {
+        if (i === leftIdx) roles.set(i, "left");
+        else if (i === rightIdx) roles.set(i, "right");
+        else roles.set(i, "hidden");
+      }
+      syncPanelRoles(node, roles, activePanel);
     };
 
     const onScroll = () => {
