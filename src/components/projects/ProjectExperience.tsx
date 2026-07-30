@@ -16,7 +16,7 @@ type ProjectExperienceProps = {
   sectionId?: string;
 };
 
-/** Variant A split stage — only where 70/30 previews stay readable */
+/** Full-stage slash wipe — desktop only */
 const STICKY_MIN_WIDTH = 1100;
 const SNAP_MIN_WIDTH = 360;
 
@@ -257,10 +257,16 @@ export function ProjectExperience({
         <div
           ref={trackRef}
           className="project-scroll-track relative"
-          style={{ height: project.storyTrackHeight }}
           data-active-panel="0"
           data-phase="rest"
           data-dominant-side="left"
+          style={
+            {
+              height: project.storyTrackHeight,
+              ["--project-divider-x" as string]: "100%",
+              ["--project-divider-slant" as string]: "56px",
+            } as React.CSSProperties
+          }
         >
           <ProjectStickyStage project={project} panels={panels} />
         </div>
@@ -340,16 +346,8 @@ function ProjectStickyStage({
             <div
               key={panel.id}
               data-scene-panel={String(panel.panelIndex)}
-              data-slot={panel.panelIndex === 0 ? "left" : panel.panelIndex === 1 ? "right" : "none"}
-              data-emphasis={panel.panelIndex === 0 ? "dominant" : panel.panelIndex === 1 ? "preview" : "none"}
-              data-swap-role="static"
-              data-anchor={
-                panel.panelIndex === 0
-                  ? "left"
-                  : panel.panelIndex === 1
-                    ? "right"
-                    : "none"
-              }
+              data-reveal={panel.panelIndex === 0 ? "full" : "none"}
+              data-emphasis={panel.panelIndex === 0 ? "dominant" : "hidden"}
               className={cn("project-panel", `project-panel--${panel.kind}`)}
               aria-hidden={panel.panelIndex !== 0}
               inert={panel.panelIndex !== 0 ? true : undefined}

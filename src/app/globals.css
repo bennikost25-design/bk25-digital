@@ -326,8 +326,9 @@ a.nav-link-mobile:focus-visible {
 
 .project-scroll-track {
   overflow: visible;
-  --project-divider-x: 70%;
-  --preview-swap: 0;
+  --project-divider-x: 100%;
+  --project-divider-slant: 56px;
+  --project-slash-thickness: 1.1rem;
   --slide-motion: 0;
 }
 
@@ -465,8 +466,8 @@ a.nav-link-mobile:focus-visible {
 }
 
 /*
-  Stage proportion ≈ 16/7 so the dominant 70% pane ≈ 16:10.
-  Capped by available sticky height under the chrome.
+  Stage height preserved (≈ 16:9.14 visual plane), capped under chrome.
+  Full-stage panels; slash wipe reveals via shared slanted clip geometry.
 */
 .project-panel-viewport {
   position: relative;
@@ -480,6 +481,13 @@ a.nav-link-mobile:focus-visible {
   overflow: hidden;
   isolation: isolate;
   background: color-mix(in srgb, var(--project-base, #f5f0e8) 94%, #000 3%);
+  /* Shared slash cut: top is further right than bottom (/), matching --slash-angle */
+  --divider-top: calc(
+    var(--project-divider-x) + (var(--project-divider-slant) * 0.5)
+  );
+  --divider-bottom: calc(
+    var(--project-divider-x) - (var(--project-divider-slant) * 0.5)
+  );
 }
 
 .project-experience--wellenweg .project-panel-viewport {
@@ -507,22 +515,41 @@ a.nav-link-mobile:focus-visible {
   pointer-events: none;
 }
 
-.project-scroll-track[data-split-ready="true"] .project-panel[data-slot="left"] {
+/* Full rest slide — no next-panel preview strip */
+.project-scroll-track[data-split-ready="true"] .project-panel[data-reveal="full"] {
   visibility: visible;
-  z-index: 2;
-  /* 1px overlap under the slash avoids subpixel gaps */
-  clip-path: inset(0 calc(100% - var(--project-divider-x) - 1px) 0 0);
+  z-index: 3;
+  clip-path: none;
 }
 
-.project-scroll-track[data-split-ready="true"] .project-panel[data-slot="right"] {
+/* West of the slanted cut (left of the slash) */
+.project-scroll-track[data-split-ready="true"] .project-panel[data-reveal="west"] {
   visibility: visible;
   z-index: 2;
-  clip-path: inset(0 0 0 calc(var(--project-divider-x) - 1px));
+  clip-path: polygon(
+    -1% -1%,
+    calc(var(--divider-top) + 1.5px) -1%,
+    calc(var(--divider-bottom) + 1.5px) 101%,
+    -1% 101%
+  );
 }
 
-.project-scroll-track[data-split-ready="true"] .project-panel[data-slot="none"] {
+/* East of the slanted cut (right of the slash) */
+.project-scroll-track[data-split-ready="true"] .project-panel[data-reveal="east"] {
+  visibility: visible;
+  z-index: 2;
+  clip-path: polygon(
+    calc(var(--divider-top) - 1.5px) -1%,
+    101% -1%,
+    101% 101%,
+    calc(var(--divider-bottom) - 1.5px) 101%
+  );
+}
+
+.project-scroll-track[data-split-ready="true"] .project-panel[data-reveal="none"] {
   visibility: hidden;
   z-index: 0;
+  clip-path: inset(0 0 0 100%);
 }
 
 .project-panel[data-emphasis="dominant"] {
@@ -530,56 +557,35 @@ a.nav-link-mobile:focus-visible {
   pointer-events: auto;
 }
 
-/* Fixed 70%-of-stage content frames — slash reveals, content does not reflow */
+/* Full-stage content frames — geometry via clip-path only, no width reflow */
 .project-panel-frame {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 70%;
+  inset: 0;
+  width: 100%;
   height: 100%;
-  will-change: transform;
   backface-visibility: hidden;
 }
 
-.project-panel[data-anchor="left"] .project-panel-frame {
-  left: 0;
-  right: auto;
-}
-
-.project-panel[data-anchor="right"] .project-panel-frame {
-  right: 0;
-  left: auto;
-}
-
-/* Preview handoff inside the minor pane */
-.project-panel[data-slot="left"][data-swap-role="outgoing"] .project-panel-frame {
-  transform: translate3d(calc(var(--preview-swap) * -100%), 0, 0);
-}
-
-.project-panel[data-slot="left"][data-swap-role="incoming"] .project-panel-frame {
-  transform: translate3d(calc((var(--preview-swap) - 1) * 100%), 0, 0);
-}
-
-.project-panel[data-slot="right"][data-swap-role="outgoing"] .project-panel-frame {
-  transform: translate3d(calc(var(--preview-swap) * 100%), 0, 0);
-}
-
-.project-panel[data-slot="right"][data-swap-role="incoming"] .project-panel-frame {
-  transform: translate3d(calc((1 - var(--preview-swap)) * 100%), 0, 0);
-}
-
+/*
+  BK25 slash: thin parallelogram over the shared cut.
+  Element is wide enough for the slant; optical band ≈ 14–24px.
+*/
 .project-stage-divider {
   pointer-events: none;
   position: absolute;
   z-index: 8;
   top: 0;
   bottom: 0;
-  left: var(--project-divider-x, 70%);
-  /* Fixed-width parallelogram — avoids tall skewX spanning hundreds of px */
-  width: 0.72rem;
+  left: var(--project-divider-x, 100%);
+  width: calc(var(--project-divider-slant) + var(--project-slash-thickness));
   transform: translate3d(-50%, 0, 0);
   background: var(--color-violet);
-  clip-path: polygon(0.38rem 0, 100% 0, calc(100% - 0.38rem) 100%, 0 100%);
+  clip-path: polygon(
+    var(--project-divider-slant) 0,
+    calc(var(--project-divider-slant) + var(--project-slash-thickness)) 0,
+    var(--project-slash-thickness) 100%,
+    0 100%
+  );
   box-shadow: none;
 }
 
@@ -606,38 +612,21 @@ a.nav-link-mobile:focus-visible {
   object-position: center center;
 }
 
-.project-panel[data-anchor="left"] .project-image-photo {
-  object-position: center center;
-}
-
-.project-panel[data-anchor="right"] .project-image-photo {
-  object-position: center center;
-}
-
-/* Keep text clear of the thin divider seam */
-.project-panel[data-anchor="left"] .project-text-slide {
-  padding-right: clamp(1.5rem, 3vw, 2.75rem);
-}
-
-.project-panel[data-anchor="right"] .project-text-slide {
-  padding-left: clamp(1.5rem, 3vw, 2.75rem);
-}
-
-/* ---------- Text slides (70% editorial surface) ---------- */
+/* ---------- Text slides (full editorial surface, restrained measure) ---------- */
 .project-text-slide {
   width: 100%;
   height: 100%;
   display: flex;
   align-items: stretch;
   justify-content: stretch;
-  padding: clamp(1.75rem, 4vw, 4.5rem);
+  padding: clamp(1.75rem, 4vw, 4.5rem) clamp(1.75rem, 4.5vw, 5rem);
   box-sizing: border-box;
   overflow: hidden;
 }
 
 .project-text-slide-inner {
   width: 100%;
-  max-width: none;
+  max-width: min(100%, 68rem);
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -646,25 +635,34 @@ a.nav-link-mobile:focus-visible {
   min-height: 0;
 }
 
-.project-panel[data-emphasis="dominant"] .project-text-slide-inner {
+.project-panel[data-emphasis="dominant"] .project-text-slide-inner,
+.project-panel[data-reveal="full"] .project-text-slide-inner,
+.project-panel[data-reveal="west"] .project-text-slide-inner,
+.project-panel[data-reveal="east"] .project-text-slide-inner {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(12rem, 0.9fr);
+  grid-template-columns: minmax(0, 1.35fr) minmax(12rem, 0.85fr);
   grid-template-rows: auto minmax(0, 1fr);
-  column-gap: clamp(1.25rem, 3vw, 2.75rem);
+  column-gap: clamp(1.5rem, 4vw, 3.5rem);
   row-gap: clamp(1rem, 2vh, 1.75rem);
   align-content: stretch;
 }
 
-.project-panel[data-emphasis="dominant"] .project-text-primary {
+.project-panel[data-emphasis="dominant"] .project-text-primary,
+.project-panel[data-reveal="full"] .project-text-primary,
+.project-panel[data-reveal="west"] .project-text-primary,
+.project-panel[data-reveal="east"] .project-text-primary {
   grid-column: 1;
   grid-row: 1;
 }
 
-.project-panel[data-emphasis="dominant"] .project-text-points {
+.project-panel[data-emphasis="dominant"] .project-text-points,
+.project-panel[data-reveal="full"] .project-text-points,
+.project-panel[data-reveal="west"] .project-text-points,
+.project-panel[data-reveal="east"] .project-text-points {
   grid-column: 2;
   grid-row: 1 / span 2;
   align-self: end;
-  max-width: none;
+  max-width: 28rem;
 }
 
 .project-text-primary {
@@ -704,7 +702,7 @@ a.nav-link-mobile:focus-visible {
   margin-top: clamp(0.95rem, 1.8vh, 1.4rem);
   font-size: clamp(1.08rem, 1.4vw, 1.5rem);
   line-height: 1.45;
-  max-width: none;
+  max-width: 42rem;
 }
 
 .project-text-points {
@@ -734,38 +732,6 @@ a.nav-link-mobile:focus-visible {
   background: currentColor;
   transform: skewX(var(--slash-angle));
   opacity: 0.7;
-}
-
-/* 30% preview: label + title only, parked inside the visible strip */
-.project-panel[data-emphasis="preview"] .project-text-body,
-.project-panel[data-emphasis="preview"] .project-text-points {
-  display: none;
-}
-
-.project-panel[data-emphasis="preview"] .project-text-slide {
-  padding: clamp(1.1rem, 2.2vw, 1.75rem);
-}
-
-.project-panel[data-emphasis="preview"] .project-text-slide-inner {
-  justify-content: center;
-  /* 30/70 of the frame ≈ the visible peek width */
-  width: 42.857%;
-  max-width: none;
-}
-
-.project-panel[data-emphasis="preview"][data-anchor="left"] .project-text-slide-inner {
-  margin-right: auto;
-  margin-left: 0;
-}
-
-.project-panel[data-emphasis="preview"][data-anchor="right"] .project-text-slide-inner {
-  margin-left: auto;
-  margin-right: 0;
-}
-
-.project-panel[data-emphasis="preview"] .project-text-title {
-  font-size: clamp(1.25rem, 2.2vw, 2.1rem);
-  max-width: 11ch;
 }
 
 .project-text-slide--light {
@@ -856,6 +822,22 @@ a.nav-link-mobile:focus-visible {
   scroll-snap-stop: always;
   min-height: min(72svh, 36rem);
   overflow: hidden;
+}
+
+/* Decorative edge slash — no wipe mask; keeps touch snap intact */
+.project-snap-item:not(:last-child)::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: calc(40px + 0.85rem);
+  transform: translate3d(50%, 0, 0);
+  background: var(--color-violet);
+  clip-path: polygon(40px 0, calc(40px + 0.85rem) 0, 0.85rem 100%, 0 100%);
+  opacity: 0.92;
 }
 
 .project-snap-item--image {
@@ -997,9 +979,8 @@ a.nav-link-mobile:focus-visible {
 
   .project-panel-frame {
     position: relative !important;
+    inset: auto !important;
     width: 100% !important;
-    left: auto !important;
-    right: auto !important;
     transform: none !important;
   }
 
