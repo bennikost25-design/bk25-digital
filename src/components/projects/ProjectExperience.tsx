@@ -154,11 +154,13 @@ function SnapImagePanel({
   panel: Extract<StoryPanel, { kind: "image" }>;
   priority?: boolean;
 }) {
+  const src = panel.frame.mobileSrc ?? panel.frame.src;
+
   return (
     <figure className="project-snap-image">
       <div className="project-snap-image-atmosphere" aria-hidden="true">
         <Image
-          src={panel.frame.src}
+          src={src}
           alt=""
           fill
           sizes="100vw"
@@ -170,10 +172,10 @@ function SnapImagePanel({
       <div className="project-snap-image-stage">
         <div className="project-snap-image-sharp">
           <Image
-            src={panel.frame.src}
+            src={src}
             alt={panel.frame.alt}
             fill
-            sizes="(min-width: 768px) 90vw, 100vw"
+            sizes="(min-width: 900px) 40vw, (min-width: 640px) 50vw, 72vw"
             className="project-snap-image-sharp-photo"
             priority={priority}
           />

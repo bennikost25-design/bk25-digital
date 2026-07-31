@@ -15,6 +15,8 @@ export type ProjectFeature = {
 export type ProjectStoryFrame = {
   id: string;
   src: string;
+  /** Optional portrait asset for snap/mobile story only (2:3 WebP) */
+  mobileSrc?: string;
   alt: string;
   caption: string;
   /** Small label on the following text slide, e.g. „Komplettpaket · Umfang“ */
@@ -101,6 +103,7 @@ export const projects: Project[] = [
       {
         id: "nahwerk-startseite",
         src: "/images/projects/bk25-nahwerk-startseite-v2.jpg",
+        mobileSrc: "/images/projects/mobile/bk25-nahwerk-startseite-mobile.webp",
         alt: "Redaktionelle Projektvorschau der Nahwerk-Startseite mit großer Desktopansicht, vollständiger Seitenminiatur und Detailausschnitten",
         caption: "Startseite",
         textLabel: "Komplettpaket · Umfang",
@@ -116,6 +119,7 @@ export const projects: Project[] = [
       {
         id: "nahwerk-leistungen",
         src: "/images/projects/bk25-nahwerk-leistungen-v2.jpg",
+        mobileSrc: "/images/projects/mobile/bk25-nahwerk-leistungen-mobile.webp",
         alt: "Projektvorschau der Nahwerk-Leistungsseite mit vollständiger Seitenübersicht und detaillierter Leistungsdarstellung",
         caption: "Leistungen",
         textLabel: "Komplettpaket · Leistungen",
@@ -131,6 +135,7 @@ export const projects: Project[] = [
       {
         id: "nahwerk-karriere",
         src: "/images/projects/bk25-nahwerk-karriere-v2.jpg",
+        mobileSrc: "/images/projects/mobile/bk25-nahwerk-karriere-mobile.webp",
         alt: "Projektvorschau des Nahwerk-Karrierebereichs mit vollständiger Seitenübersicht und Kurzbewerbungsformular",
         caption: "Karriere",
         textLabel: "Komplettpaket · Karriere",
@@ -197,6 +202,7 @@ export const projects: Project[] = [
       {
         id: "wellenweg-startseite",
         src: "/images/projects/bk25-wellenweg-startseite-v2.jpg",
+        mobileSrc: "/images/projects/mobile/bk25-wellenweg-startseite-mobile.webp",
         alt: "Redaktionelle Projektvorschau der Wellenweg-Startseite mit großer Desktopansicht, vollständiger Seitenminiatur und Detailausschnitten",
         caption: "Startseite",
         textLabel: "Basispaket · Klarer Einstieg",
@@ -212,6 +218,7 @@ export const projects: Project[] = [
       {
         id: "wellenweg-leistungen",
         src: "/images/projects/bk25-wellenweg-leistungen-v2.jpg",
+        mobileSrc: "/images/projects/mobile/bk25-wellenweg-leistungen-mobile.webp",
         alt: "Projektvorschau der Wellenweg-Leistungsseite mit vollständiger Seitenübersicht und kompakter Leistungsdarstellung",
         caption: "Leistungen",
         textLabel: "Basispaket · Leistungen",
