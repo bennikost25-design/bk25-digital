@@ -170,6 +170,81 @@ a.nav-link-mobile:focus-visible {
   color: var(--color-violet);
 }
 
+/*
+  Mobile full-screen nav overlay.
+  Must live outside any backdrop-filter ancestor (see Header.tsx).
+*/
+.site-mobile-nav {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  padding-top: env(safe-area-inset-top, 0px);
+  box-sizing: border-box;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.site-mobile-nav-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+  padding-inline: var(--section-pad-x);
+  padding-top: calc(var(--header-height) + 0.75rem);
+  padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+}
+
+.site-mobile-nav-list {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.site-mobile-nav-cta {
+  flex: 0 0 auto;
+  padding-top: 1rem;
+}
+
+.site-mobile-nav[inert],
+.site-mobile-nav[aria-hidden="true"] {
+  pointer-events: none;
+}
+
+@media (max-height: 480px) {
+  .site-mobile-nav-panel {
+    padding-top: calc(var(--header-height) + 0.35rem);
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .site-mobile-nav-list a.nav-link-mobile {
+    padding-block: 0.45rem;
+    font-size: clamp(1.25rem, 6.5vh, 1.85rem);
+  }
+
+  .site-mobile-nav-cta {
+    padding-top: 0.65rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-mobile-nav {
+    transition: none !important;
+  }
+}
+
 /* Reveal system â€” hide only when scripting is available and motion is allowed */
 @media (scripting: enabled) {
   @media (prefers-reduced-motion: no-preference) {
