@@ -116,7 +116,7 @@ export function PackagesSection() {
 
         <Reveal className="mt-14">
           <Button href="/leistungen" variant="onLight">
-            Mehr zu den Leistungen
+            Leistungen & Preise ansehen
           </Button>
         </Reveal>
       </div>

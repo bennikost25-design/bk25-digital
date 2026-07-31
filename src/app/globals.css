@@ -170,6 +170,201 @@ a.nav-link-mobile:focus-visible {
   color: var(--color-violet);
 }
 
+/* ---------- Leistungen & Preise ---------- */
+.package-price-block {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1.15rem 1.2rem;
+  border: 1px solid color-mix(in srgb, var(--color-black) 10%, transparent);
+  background: color-mix(in srgb, var(--color-light) 88%, #fff);
+}
+
+.package-price-regular,
+.package-price-intro {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.package-price-label {
+  font-family: var(--font-heading), system-ui, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.package-price-label--intro {
+  color: var(--color-violet-dark);
+}
+
+.package-price-value {
+  font-family: var(--font-heading), system-ui, sans-serif;
+  font-size: clamp(1.2rem, 2.4vw, 1.45rem);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--color-black);
+}
+
+.package-price-value--intro {
+  font-size: clamp(1.45rem, 3vw, 1.85rem);
+  color: var(--color-violet-dark);
+}
+
+.package-price-note {
+  font-size: 0.92rem;
+  color: var(--color-muted);
+  line-height: 1.45;
+}
+
+.pricing-addons-wrap {
+  width: 100%;
+  overflow-x: clip;
+  border: 1px solid color-mix(in srgb, var(--color-black) 10%, transparent);
+  background: var(--color-white);
+}
+
+.pricing-addons {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.pricing-addons th,
+.pricing-addons td {
+  padding: 1rem 1.1rem;
+  text-align: left;
+  vertical-align: top;
+  font-size: 0.98rem;
+  line-height: 1.5;
+}
+
+.pricing-addons thead th {
+  font-family: var(--font-heading), system-ui, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  background: color-mix(in srgb, var(--color-light) 70%, #fff);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-black) 10%, transparent);
+}
+
+.pricing-addons tbody th {
+  font-family: var(--font-heading), system-ui, sans-serif;
+  font-weight: 600;
+  color: var(--color-black);
+  width: 32%;
+}
+
+.pricing-addons tbody td {
+  color: var(--color-muted);
+}
+
+.pricing-addons tbody td:last-child {
+  width: 22%;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.pricing-addons tbody tr + tr {
+  border-top: 1px solid color-mix(in srgb, var(--color-black) 8%, transparent);
+}
+
+.pricing-addons tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--color-light) 55%, #fff);
+}
+
+.pricing-addons-price {
+  font-family: var(--font-heading), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--color-black);
+  letter-spacing: -0.01em;
+}
+
+.pricing-notes {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-width: 48rem;
+}
+
+.pricing-notes li {
+  position: relative;
+  padding-left: 1.1rem;
+  color: var(--color-muted);
+  line-height: 1.55;
+}
+
+.pricing-notes li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55rem;
+  width: 0.35rem;
+  height: 0.85rem;
+  background: var(--color-violet-dark);
+  transform: skewX(var(--slash-angle));
+}
+
+@media (max-width: 767px) {
+  .pricing-addons,
+  .pricing-addons tbody,
+  .pricing-addons tr,
+  .pricing-addons th,
+  .pricing-addons td {
+    display: block;
+    width: 100%;
+  }
+
+  .pricing-addons thead {
+    display: none;
+  }
+
+  .pricing-addons tbody tr {
+    padding: 1.1rem 1rem 1.2rem;
+  }
+
+  .pricing-addons tbody tr + tr {
+    border-top: 1px solid color-mix(in srgb, var(--color-black) 10%, transparent);
+  }
+
+  .pricing-addons tbody th {
+    padding: 0;
+    font-size: 1.05rem;
+  }
+
+  .pricing-addons tbody td {
+    padding: 0.45rem 0 0;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .pricing-addons tbody td[data-label="Preis"] {
+    margin-top: 0.55rem;
+    padding-top: 0.65rem;
+    border-top: 1px dashed color-mix(in srgb, var(--color-black) 12%, transparent);
+  }
+
+  .pricing-addons tbody td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 0.15rem;
+    font-family: var(--font-heading), system-ui, sans-serif;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+
+  .pricing-addons-price {
+    font-size: 1.05rem;
+  }
+}
+
 /*
   Mobile full-screen nav overlay.
   Must live outside any backdrop-filter ancestor (see Header.tsx).
