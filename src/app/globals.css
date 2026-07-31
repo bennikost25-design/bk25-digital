@@ -612,13 +612,13 @@ a.nav-link-mobile:focus-visible {
   background: color-mix(in srgb, var(--project-base, #e8f2f5) 86%, #0f2a32 7%);
 }
 
-/* Sticky desktop: full graphic visible (stage is wider than 16:10 source art) */
-.project-scroll-track .project-image-panel {
-  padding: clamp(0.55rem, 1.4vw, 1.35rem);
-}
-
+/*
+  Sticky desktop (≥1100px): fill the stage again.
+  Mobile snap uses separate .project-snap-image-* rules (2:3 + contain).
+  Stack/reduced-motion keeps its own contain + 16:10 sizing below.
+*/
 .project-scroll-track .project-image-photo {
-  object-fit: contain;
+  object-fit: cover;
   object-position: center center;
 }
 
