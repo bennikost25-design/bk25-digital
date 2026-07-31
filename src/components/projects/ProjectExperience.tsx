@@ -146,6 +146,90 @@ function ImagePanel({
   );
 }
 
+/** Mobile snap only: atmospheric cover bg + sharp contain foreground */
+function SnapImagePanel({
+  panel,
+  priority = false,
+}: {
+  panel: Extract<StoryPanel, { kind: "image" }>;
+  priority?: boolean;
+}) {
+  return (
+    <figure className="project-snap-image">
+      <div className="project-snap-image-atmosphere" aria-hidden="true">
+        <Image
+          src={panel.frame.src}
+          alt=""
+          fill
+          sizes="100vw"
+          className="project-snap-image-atmosphere-photo"
+          priority={priority}
+          aria-hidden="true"
+        />
+      </div>
+      <div className="project-snap-image-stage">
+        <div className="project-snap-image-sharp">
+          <Image
+            src={panel.frame.src}
+            alt={panel.frame.alt}
+            fill
+            sizes="(min-width: 768px) 90vw, 100vw"
+            className="project-snap-image-sharp-photo"
+            priority={priority}
+          />
+        </div>
+      </div>
+    </figure>
+  );
+}
+
+function SnapTextSlide({
+  panel,
+}: {
+  panel: Extract<StoryPanel, { kind: "text" }>;
+}) {
+  const { frame, tone } = panel;
+
+  return (
+    <div
+      className={cn(
+        "project-text-slide project-snap-text",
+        tone === "dark"
+          ? "project-text-slide--dark"
+          : "project-text-slide--light",
+      )}
+    >
+      <div className="project-text-slide-inner project-snap-text-inner">
+        <div className="project-text-primary">
+          <span className="project-text-slash" aria-hidden="true" />
+          <p className="project-text-label project-snap-reveal project-snap-reveal--1">
+            {frame.textLabel}
+          </p>
+          <h3 className="project-text-title project-snap-reveal project-snap-reveal--2">
+            {frame.textTitle}
+          </h3>
+          <p className="project-text-body project-snap-reveal project-snap-reveal--3">
+            {frame.textBody}
+          </p>
+        </div>
+        {frame.textPoints.length > 0 ? (
+          <ul className="project-text-points project-snap-reveal project-snap-reveal--4">
+            {frame.textPoints.map((point, index) => (
+              <li
+                key={point}
+                className="project-snap-point"
+                style={{ ["--point-i" as string]: String(index) }}
+              >
+                {point}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function PanelChrome({
   project,
   panelIndex,
@@ -376,106 +460,195 @@ function ProjectSnapStage({
   panels: StoryPanel[];
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
   const panelCount = panels.length;
+  const lockedActive = useRef(0);
+
+  useEffect(() => {
+    const root = scrollerRef.current;
+    const stage = stageRef.current;
+    if (!root || !stage) return;
+
+    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let frame = 0;
+    let width = Math.max(1, root.clientWidth);
+
+    const writeMotion = () => {
+      frame = 0;
+      width = Math.max(1, root.clientWidth);
+      const scroll = root.scrollLeft;
+      const items = root.querySelectorAll<HTMLElement>("[data-snap-panel]");
+
+      items.forEach((el, index) => {
+        const delta = (scroll - index * width) / width;
+        const abs = Math.min(1, Math.abs(delta));
+        el.style.setProperty("--snap-offset", delta.toFixed(4));
+        el.style.setProperty("--snap-abs", abs.toFixed(4));
+      });
+
+      // Discrete active index with hysteresis — avoid mid-swipe flicker
+      const rough = scroll / width;
+      const nearest = Math.round(rough);
+      const clamped = Math.max(0, Math.min(panelCount - 1, nearest));
+      const dist = Math.abs(rough - lockedActive.current);
+      if (
+        clamped !== lockedActive.current &&
+        (dist > 0.55 || Math.abs(rough - clamped) < 0.12)
+      ) {
+        lockedActive.current = clamped;
+        setActive(clamped);
+      }
+    };
+
+    const onScroll = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(writeMotion);
+    };
+
+    const onResize = () => {
+      width = Math.max(1, root.clientWidth);
+      writeMotion();
+    };
+
+    const enhance = () => {
+      if (!motionQuery.matches) {
+        stage.dataset.motionReady = "true";
+      } else {
+        delete stage.dataset.motionReady;
+      }
+      stage.dataset.snapReady = "true";
+      writeMotion();
+    };
+
+    enhance();
+    root.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onResize, { passive: true });
+    motionQuery.addEventListener("change", enhance);
+
+    return () => {
+      root.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onResize);
+      motionQuery.removeEventListener("change", enhance);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [panelCount, panels]);
 
   useEffect(() => {
     const root = scrollerRef.current;
     if (!root) return;
-
-    const items = Array.from(
-      root.querySelectorAll<HTMLElement>("[data-snap-panel]"),
-    );
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (!visible) return;
-        const idx = Number(
-          (visible.target as HTMLElement).dataset.snapPanel ?? "0",
-        );
-        setActive(idx);
-      },
-      { root, threshold: [0.55, 0.7] },
-    );
-
-    items.forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
-  }, [panels]);
+    root.querySelectorAll<HTMLElement>("[data-snap-panel]").forEach((el) => {
+      const idx = Number(el.dataset.snapPanel ?? "-1");
+      el.dataset.active = idx === active ? "true" : "false";
+      el.setAttribute("aria-hidden", idx === active ? "false" : "true");
+      if (idx === active) el.removeAttribute("inert");
+      else el.setAttribute("inert", "");
+    });
+  }, [active, panels]);
 
   const goTo = (index: number) => {
     const root = scrollerRef.current;
     if (!root) return;
-    const target = root.querySelector<HTMLElement>(
-      `[data-snap-panel="${index}"]`,
-    );
-    target?.scrollIntoView({
+    const width = Math.max(1, root.clientWidth);
+    const next = Math.max(0, Math.min(panelCount - 1, index));
+    root.scrollTo({
+      left: next * width,
       behavior: "smooth",
-      inline: "start",
-      block: "nearest",
     });
   };
 
+  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      goTo(active + 1);
+    } else if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      goTo(active - 1);
+    }
+  };
+
   return (
-    <div className="project-snap-stage px-[var(--section-pad-x)] pb-8">
+    <div ref={stageRef} className="project-snap-stage">
       <PanelChrome
         project={project}
         panelIndex={active}
         panelCount={panelCount}
-        className="project-panel-chrome--snap mb-3"
+        className="project-panel-chrome--snap"
       />
 
-      <div
-        ref={scrollerRef}
-        className="project-snap-scroller"
-        tabIndex={0}
-        role="region"
-        aria-roledescription="Karussell"
-        aria-label={`${project.title} Projektpräsentation`}
-      >
-        {panels.map((panel, index) => (
-          <div
-            key={panel.id}
-            data-snap-panel={String(index)}
-            className={cn(
-              "project-snap-item",
-              `project-snap-item--${panel.kind}`,
-            )}
-          >
-            {panel.kind === "image" ? (
-              <ImagePanel panel={panel} priority={index === 0} />
-            ) : (
-              <TextSlideContent panel={panel} />
-            )}
-          </div>
-        ))}
-      </div>
+      <div className="project-snap-shell">
+        <div
+          ref={scrollerRef}
+          className="project-snap-scroller"
+          tabIndex={0}
+          role="region"
+          aria-roledescription="Karussell"
+          aria-label={`${project.title} Projektpräsentation`}
+          onKeyDown={onKeyDown}
+        >
+          {panels.map((panel, index) => (
+            <div
+              key={panel.id}
+              data-snap-panel={String(index)}
+              data-active={index === 0 ? "true" : "false"}
+              className={cn(
+                "project-snap-item",
+                `project-snap-item--${panel.kind}`,
+              )}
+            >
+              <div className="project-snap-item-depth">
+                {panel.kind === "image" ? (
+                  <SnapImagePanel panel={panel} priority={index === 0} />
+                ) : (
+                  <SnapTextSlide panel={panel} />
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
 
-      <div className="project-snap-controls mt-4">
-        <button
-          type="button"
-          className="project-snap-btn"
-          onClick={() => goTo(Math.max(0, active - 1))}
-          disabled={active <= 0}
-          aria-label="Vorheriges Panel"
-        >
-          ←
-        </button>
-        <p className="project-snap-status" aria-live="polite">
-          {String(active + 1).padStart(2, "0")} /{" "}
-          {String(panelCount).padStart(2, "0")}
-        </p>
-        <button
-          type="button"
-          className="project-snap-btn"
-          onClick={() => goTo(Math.min(panelCount - 1, active + 1))}
-          disabled={active >= panelCount - 1}
-          aria-label="Nächstes Panel"
-        >
-          →
-        </button>
+        <div className="project-snap-dock">
+          <button
+            type="button"
+            className="project-snap-btn"
+            onClick={() => goTo(Math.max(0, active - 1))}
+            disabled={active <= 0}
+            aria-label="Vorheriges Panel"
+          >
+            ←
+          </button>
+
+          <div className="project-snap-progress" aria-hidden="true">
+            {panels.map((panel, index) => (
+              <span
+                key={panel.id}
+                className={cn(
+                  "project-snap-progress-seg",
+                  index === active && "is-active",
+                  index < active && "is-passed",
+                )}
+              />
+            ))}
+          </div>
+
+          <p className="project-snap-status" aria-live="polite">
+            <span className="sr-only">Panel </span>
+            {String(active + 1).padStart(2, "0")}
+            <span aria-hidden="true"> / </span>
+            <span className="sr-only">von </span>
+            {String(panelCount).padStart(2, "0")}
+          </p>
+
+          <button
+            type="button"
+            className="project-snap-btn"
+            onClick={() => goTo(Math.min(panelCount - 1, active + 1))}
+            disabled={active >= panelCount - 1}
+            aria-label="Nächstes Panel"
+          >
+            →
+          </button>
+        </div>
       </div>
     </div>
   );
