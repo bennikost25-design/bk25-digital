@@ -60,6 +60,33 @@ export const packages: PackageItem[] = [
 export const packagePricingNote =
   "Der konkrete Preis richtet sich nach dem abgestimmten Projektumfang.";
 
+export const websiteCare = {
+  label: "Optionale Website-Betreuung",
+  title: "Auch nach dem Start gut betreut",
+  intro:
+    "Auf Wunsch übernehme ich nach der Veröffentlichung die laufende technische Betreuung und kleinere Aktualisierungen. So bleibt die Website zuverlässig, aktuell und anpassbar.",
+  price: "59 €",
+  pricePeriod: "/ Monat",
+  traits: [
+    "optional buchbar",
+    "monatlich zum Ende des jeweiligen Abrechnungsmonats kündbar",
+    "für von BK25 Digital erstellte Websites",
+  ],
+  includes: [
+    "regelmäßige technische Funktionsprüfung der Website",
+    "notwendige Sicherheits- und technische Updates innerhalb der vorhandenen Website",
+    "kleine Text- oder Bildänderungen bis insgesamt 30 Minuten pro Monat",
+    "E-Mail-Support bei technischen Problemen mit der Website",
+  ],
+  boundaries: [
+    "Nicht genutzte Änderungszeit wird nicht auf spätere Monate übertragen.",
+    "Größere Änderungen, neue Seiten, neue Funktionen oder ein höherer monatlicher Änderungsaufwand sind nicht enthalten.",
+    "Diese Arbeiten werden nach vorheriger Abstimmung mit 65 € pro Stunde oder über ein separates Angebot berechnet.",
+    "Domain, Hosting, geschäftliche E-Mail, kostenpflichtige Lizenzen und andere externe Dienstleistungen sind nicht im Monatspreis enthalten.",
+    "Eine rechtliche Prüfung oder laufende rechtliche Aktualisierung von Impressum, Datenschutz und anderen Rechtstexten ist nicht Bestandteil der Betreuung.",
+  ],
+} as const;
+
 export const addOnServices: AddOnService[] = [
   {
     name: "Weitere Standard-Unterseite",
@@ -116,7 +143,8 @@ export const addOnServices: AddOnService[] = [
   },
   {
     name: "Nachträgliche Änderungen nach Veröffentlichung",
-    description: "Abrechnung nach tatsächlichem Zeitaufwand.",
+    description:
+      "Für einzelne Änderungen ohne Betreuungspaket oder zusätzlichen Aufwand über das enthaltene monatliche Änderungskontingent.",
     price: "65 € / Stunde",
   },
   {

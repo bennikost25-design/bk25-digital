@@ -5,6 +5,7 @@ import {
   addOnServices,
   packagePricingNote,
   packages,
+  websiteCare,
 } from "@/data/packages";
 import { PageShell } from "@/components/layout/PageShell";
 import { Reveal } from "@/components/ui/Reveal";
@@ -14,7 +15,7 @@ import { Button } from "@/components/ui/Button";
 export const metadata: Metadata = {
   title: "Leistungen & Preise",
   description:
-    "Basispaket, Komplettpaket, Einführungskonditionen und häufige Zusatzleistungen von BK25 Digital – transparent und nachvollziehbar.",
+    "Basispaket, Komplettpaket, Einführungskonditionen, optionale Website-Betreuung und häufige Zusatzleistungen von BK25 Digital.",
 };
 
 export default function LeistungenPage() {
@@ -30,7 +31,8 @@ export default function LeistungenPage() {
             <p className="mt-6 max-w-2xl text-white/70 leading-relaxed">
               Zwei Pakete bilden den Ausgangspunkt. Darunter finden Sie die
               regulären Preise, Einführungskonditionen für ausgewählte erste
-              Partnerprojekte und eine Übersicht häufiger Zusatzleistungen.
+              Partnerprojekte, eine optionale Website-Betreuung und eine
+              Übersicht häufiger Zusatzleistungen.
             </p>
           </Reveal>
         </div>
@@ -119,6 +121,63 @@ export default function LeistungenPage() {
             <p className="max-w-2xl border-l-[3px] border-[var(--color-violet-dark)] pl-4 text-[var(--color-muted)] leading-relaxed">
               {packagePricingNote}
             </p>
+          </Reveal>
+        </div>
+      </section>
+
+      <section
+        className="bg-[var(--color-black)] text-[var(--color-white)] section-pad"
+        aria-labelledby="care-heading"
+      >
+        <div className="container-site">
+          <Reveal>
+            <SectionLabel>{websiteCare.label}</SectionLabel>
+            <h2
+              id="care-heading"
+              className="mt-4 max-w-[16ch] text-[clamp(1.85rem,4.2vw,2.75rem)]"
+            >
+              {websiteCare.title}
+            </h2>
+            <p className="mt-5 max-w-2xl text-white/68 leading-relaxed">
+              {websiteCare.intro}
+            </p>
+          </Reveal>
+
+          <div className="care-layout mt-10 md:mt-12">
+            <Reveal delay={1} className="care-price-panel">
+              <p className="care-price-line">
+                <span className="care-price-amount">{websiteCare.price}</span>
+                <span className="care-price-period">
+                  {websiteCare.pricePeriod}
+                </span>
+              </p>
+              <ul className="care-traits">
+                {websiteCare.traits.map((trait) => (
+                  <li key={trait}>{trait}</li>
+                ))}
+              </ul>
+            </Reveal>
+
+            <Reveal delay={2} className="care-includes">
+              <h3 className="care-subheading">Enthalten</h3>
+              <ul className="care-list">
+                {websiteCare.includes.map((item) => (
+                  <li key={item}>
+                    <span className="care-slash" aria-hidden="true" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+          </div>
+
+          <Reveal delay={2} className="mt-10 md:mt-12">
+            <h3 className="care-subheading">Nicht enthalten</h3>
+            <ul className="care-boundaries">
+              {websiteCare.boundaries.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
           </Reveal>
         </div>
       </section>
