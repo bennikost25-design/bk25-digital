@@ -1,5 +1,6 @@
 import { relations, sql } from "drizzle-orm";
 import {
+  check,
   index,
   integer,
   sqliteTable,
@@ -7,21 +8,25 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
-export const user = sqliteTable("user", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: integer("email_verified", { mode: "boolean" })
-    .default(false)
-    .notNull(),
-  image: text("image"),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
-  role: text("role").default("customer").notNull(),
-  banned: integer("banned", { mode: "boolean" }).default(false),
-  banReason: text("ban_reason"),
-  banExpires: integer("ban_expires", { mode: "timestamp_ms" }),
-});
+export const user = sqliteTable(
+  "user",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull().unique(),
+    emailVerified: integer("email_verified", { mode: "boolean" })
+      .default(false)
+      .notNull(),
+    image: text("image"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+    role: text("role").default("customer").notNull(),
+    banned: integer("banned", { mode: "boolean" }).default(false),
+    banReason: text("ban_reason"),
+    banExpires: integer("ban_expires", { mode: "timestamp_ms" }),
+  },
+  (table) => [check("user_role_check", sql`${table.role} IN ('admin', 'customer')`)],
+);
 
 export const session = sqliteTable(
   "session",
@@ -107,7 +112,14 @@ export const customerProject = sqliteTable(
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
   },
-  (table) => [index("customer_project_profile_idx").on(table.customerProfileId)],
+  (table) => [
+    index("customer_project_profile_idx").on(table.customerProfileId),
+    check(
+      "customer_project_package_check",
+      sql`${table.packageId} IN ('basis', 'komplett') OR ${table.packageId} IS NULL`,
+    ),
+    check("customer_project_status_check", sql`${table.status} IN ('active', 'archived')`),
+  ],
 );
 
 export const projectFormAccess = sqliteTable(
@@ -125,6 +137,7 @@ export const projectFormAccess = sqliteTable(
   },
   (table) => [
     uniqueIndex("project_form_access_unique").on(table.projectId, table.formKey),
+    index("project_form_access_form_idx").on(table.formKey),
   ],
 );
 
@@ -144,8 +157,12 @@ export const invitation = sqliteTable(
       .notNull()
       .references(() => user.id),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    consumeId: text("consume_id"),
   },
-  (table) => [index("invitation_user_idx").on(table.userId)],
+  (table) => [
+    index("invitation_user_idx").on(table.userId),
+    uniqueIndex("invitation_consume_id_idx").on(table.consumeId),
+  ],
 );
 
 export const contactRequest = sqliteTable(
@@ -163,7 +180,13 @@ export const contactRequest = sqliteTable(
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
   },
-  (table) => [index("contact_request_status_idx").on(table.status, table.createdAt)],
+  (table) => [
+    index("contact_request_status_idx").on(table.status, table.createdAt),
+    check(
+      "contact_request_status_check",
+      sql`${table.status} IN ('new', 'in_progress', 'done')`,
+    ),
+  ],
 );
 
 export const formDraft = sqliteTable(
@@ -187,6 +210,8 @@ export const formDraft = sqliteTable(
   },
   (table) => [
     uniqueIndex("form_draft_unique").on(table.userId, table.projectId, table.formKey),
+    index("form_draft_project_idx").on(table.projectId, table.formKey),
+    check("form_draft_status_check", sql`${table.status} IN ('draft', 'submitted')`),
   ],
 );
 
@@ -214,6 +239,19 @@ export const formSubmission = sqliteTable(
       table.formKey,
       table.version,
     ),
+    index("form_submission_user_idx").on(table.userId, table.submittedAt),
+    uniqueIndex("form_submission_version_unique").on(
+      table.userId,
+      table.projectId,
+      table.formKey,
+      table.version,
+    ),
+    uniqueIndex("form_submission_idempotency_scope_idx").on(
+      table.userId,
+      table.projectId,
+      table.formKey,
+      table.idempotencyKey,
+    ),
   ],
 );
 
@@ -228,7 +266,10 @@ export const auditEvent = sqliteTable(
     result: text("result").notNull(),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   },
-  (table) => [index("audit_event_created_idx").on(table.createdAt)],
+  (table) => [
+    index("audit_event_created_idx").on(table.createdAt),
+    index("audit_event_resource_idx").on(table.resourceType, table.resourceId),
+  ],
 );
 
 export const emailOutbox = sqliteTable(
@@ -250,10 +291,25 @@ export const emailOutbox = sqliteTable(
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
     sentAt: integer("sent_at", { mode: "timestamp_ms" }),
     nextAttemptAt: integer("next_attempt_at", { mode: "timestamp_ms" }),
+    cancelledAt: integer("cancelled_at", { mode: "timestamp_ms" }),
   },
   (table) => [
     index("email_outbox_status_idx").on(table.status, table.nextAttemptAt),
+    check(
+      "email_outbox_status_check",
+      sql`${table.status} IN ('pending', 'processing', 'sent', 'failed')`,
+    ),
   ],
+);
+
+export const rateLimitBucket = sqliteTable(
+  "rate_limit_bucket",
+  {
+    id: text("id").primaryKey(),
+    count: integer("count").default(0).notNull(),
+    expiresAt: integer("expires_at").notNull(),
+  },
+  (table) => [index("rate_limit_bucket_expires_idx").on(table.expiresAt)],
 );
 
 export const userRelations = relations(user, ({ many, one }) => ({
@@ -296,6 +352,7 @@ export const schema = {
   formSubmission,
   auditEvent,
   emailOutbox,
+  rateLimitBucket,
   userRelations,
   customerProfileRelations,
   customerProjectRelations,

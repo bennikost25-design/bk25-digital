@@ -28,7 +28,7 @@ export default async function AdminEmailsPage() {
               <p>{row.templateKey} · {row.status}</p>
               <p className="text-sm text-muted">{row.toEmail.split("@")[1] ? `…@${row.toEmail.split("@")[1]}` : "Empfänger"} {row.lastError ? `· ${row.lastError}` : ""}</p>
             </div>
-            {row.status === "failed" || row.status === "pending" ? (
+            {row.status !== "sent" && !row.cancelledAt ? (
               <form action={retryEmailAction}>
                 <input type="hidden" name="id" value={row.id} />
                 <button className={secondaryButtonClass} type="submit">Erneut senden</button>

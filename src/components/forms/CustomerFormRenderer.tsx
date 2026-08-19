@@ -36,6 +36,7 @@ export function CustomerFormRenderer({
   initialStep,
   initialRevision,
   submission,
+  correction,
 }: {
   form: CustomerFormDefinition;
   projectId: string;
@@ -43,6 +44,12 @@ export function CustomerFormRenderer({
   initialStep: number;
   initialRevision: number;
   submission?: SubmissionView;
+  correction?: {
+    submittedCount: number;
+    maxRounds: number;
+    canStartNextRound: boolean;
+    locked: boolean;
+  };
 }) {
   const [stepIndex, setStepIndex] = useState(initialStep);
   const [values, setValues] = useState<Values>(() => ({
@@ -55,13 +62,19 @@ export function CustomerFormRenderer({
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState<SubmissionView>(submission ?? null);
+  const [startingRound, setStartingRound] = useState(false);
+  const [correctionState, setCorrectionState] = useState(correction);
   const saveTimer = useRef<number | null>(null);
   const idempotency = useRef(crypto.randomUUID());
 
   const step = form.steps[stepIndex];
   const isSummary = step.kind === "summary";
   const isCorrections = step.kind === "corrections";
-  const readOnly = Boolean(done) && form.id !== "korrekturen";
+  const canStartNextRound = Boolean(correctionState?.canStartNextRound);
+  const readOnly =
+    Boolean(correctionState?.locked) ||
+    (Boolean(done) && form.id !== "korrekturen") ||
+    canStartNextRound;
 
   const persist = async (nextValues: Values, nextStep: number, nextRevision: number) => {
     setSaveState("saving");
@@ -162,11 +175,52 @@ export function CustomerFormRenderer({
         schemaVersion: form.schemaVersion,
         values,
       });
+      if (form.id === "korrekturen") {
+        const submittedCount = (correctionState?.submittedCount ?? 0) + 1;
+        const maxRounds = correctionState?.maxRounds ?? 1;
+        setCorrectionState({
+          submittedCount,
+          maxRounds,
+          canStartNextRound: submittedCount < maxRounds,
+          locked: submittedCount >= maxRounds,
+        });
+      }
       setSaveState("saved");
     } catch {
       setStatusMessage("Verbindung unterbrochen. Bitte erneut versuchen.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const startNextRound = async () => {
+    setStartingRound(true);
+    setStatusMessage(null);
+    try {
+      const response = await fetch(`/api/forms/${form.slug}/correction-round`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ projectId }),
+      });
+      const data = (await response.json()) as { error?: string; revision?: number };
+      if (!response.ok) {
+        setStatusMessage(data.error || "Die Korrekturrunde konnte nicht gestartet werden.");
+        return;
+      }
+      setDone(null);
+      setValues(emptyFormValues(form));
+      setStepIndex(0);
+      setRevision(data.revision ?? 1);
+      setErrors({});
+      idempotency.current = crypto.randomUUID();
+      setCorrectionState((prev) =>
+        prev ? { ...prev, canStartNextRound: false, locked: false } : prev,
+      );
+      setSaveState("saved");
+    } catch {
+      setStatusMessage("Verbindung unterbrochen. Bitte erneut versuchen.");
+    } finally {
+      setStartingRound(false);
     }
   };
 
@@ -197,6 +251,16 @@ export function CustomerFormRenderer({
             </div>
           ))}
         </dl>
+        {canStartNextRound ? (
+          <button
+            type="button"
+            className={`${primaryButtonClass} mt-6`}
+            onClick={() => void startNextRound()}
+            disabled={startingRound}
+          >
+            {startingRound ? "Wird vorbereitet …" : "Zweite Korrekturrunde starten"}
+          </button>
+        ) : null}
       </div>
     );
   }

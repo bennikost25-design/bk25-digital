@@ -1,9 +1,10 @@
 import { hashPassword } from "better-auth/crypto";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import {
   account,
   customerProfile,
   customerProject,
+  emailOutbox,
   invitation,
   projectFormAccess,
   user,
@@ -12,10 +13,33 @@ import { writeAudit } from "@/lib/audit";
 import type { AuthedContext } from "@/lib/authorization";
 import { hmacSha256Hex, randomPassword, randomToken } from "@/lib/crypto";
 import { createId, nowMs } from "@/lib/ids";
-import { sendTransactionalEmailDirect } from "@/lib/mail/send";
 import { ALL_FORM_KEYS } from "@/lib/form-validation";
+import { buildOutboxRow, enqueueOutbox } from "@/lib/mail/outbox";
 
 const INVITE_TTL_MS = 1000 * 60 * 60 * 48;
+
+export class InvitationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvitationError";
+  }
+}
+
+async function runAtomicStatements(
+  db: AuthedContext["db"],
+  build: (executor: AuthedContext["db"]) => unknown[],
+) {
+  const executor = db as AuthedContext["db"] & {
+    batch?: (items: unknown[]) => Promise<unknown>;
+  };
+  if (typeof executor.batch === "function") {
+    await executor.batch(build(db));
+    return;
+  }
+  for (const statement of build(db)) {
+    await statement;
+  }
+}
 
 export async function createCustomerWithInvite(
   ctx: AuthedContext,
@@ -31,66 +55,99 @@ export async function createCustomerWithInvite(
   const email = input.email.trim().toLowerCase();
   const existing = await ctx.db.select().from(user).where(eq(user.email, email)).limit(1);
   if (existing[0]) {
-    throw new Error("Diese E-Mail-Adresse ist bereits vorhanden.");
+    throw new InvitationError("Diese E-Mail-Adresse ist bereits vorhanden.");
   }
 
   const now = new Date(nowMs());
   const userId = createId();
-  await ctx.db.insert(user).values({
-    id: userId,
-    name: input.name.trim(),
-    email,
-    emailVerified: false,
-    createdAt: now,
-    updatedAt: now,
-    role: "customer",
-    banned: false,
-  });
-  await ctx.db.insert(account).values({
-    id: createId(),
-    accountId: userId,
-    providerId: "credential",
-    userId,
-    password: await hashPassword(randomPassword()),
-    createdAt: now,
-    updatedAt: now,
-  });
   const profileId = createId();
   const projectId = createId();
+  const inviteId = createId();
+  const token = randomToken(32);
+  const tokenHash = await hmacSha256Hex(ctx.env.BETTER_AUTH_SECRET, token);
   const allowedKeys = input.formKeys.filter((key) =>
     ALL_FORM_KEYS.includes(key as (typeof ALL_FORM_KEYS)[number]),
   );
+  const outbox = buildOutboxRow({
+    type: "invite-setup",
+    toEmail: email,
+    toName: input.name.trim(),
+    templateKey: "invite-setup",
+    payload: {
+      name: input.name.trim(),
+      actionUrl: `${ctx.env.NEXT_PUBLIC_SITE_URL}/konto/einrichten?token=${token}`,
+    },
+    relatedResourceType: "invitation",
+    relatedResourceId: inviteId,
+  });
 
-  await ctx.db.insert(customerProfile).values({
-    id: profileId,
-    userId,
-    companyName: input.companyName.trim(),
-    createdByAdminId: ctx.user.id,
-    createdAt: now,
-    updatedAt: now,
-  });
-  await ctx.db.insert(customerProject).values({
-    id: projectId,
-    customerProfileId: profileId,
-    title: input.projectTitle.trim(),
-    packageId: input.packageId ?? null,
-    status: "active",
-    createdAt: now,
-    updatedAt: now,
-  });
-  if (allowedKeys.length > 0) {
-    await ctx.db.insert(projectFormAccess).values(
-      allowedKeys.map((formKey) => ({
+  const passwordHash = await hashPassword(randomPassword());
+  await runAtomicStatements(ctx.db, (tx) => {
+    const statements: unknown[] = [
+      tx.insert(user).values({
+        id: userId,
+        name: input.name.trim(),
+        email,
+        emailVerified: false,
+        createdAt: now,
+        updatedAt: now,
+        role: "customer",
+        banned: false,
+      }),
+      tx.insert(account).values({
         id: createId(),
-        projectId,
-        formKey,
-        grantedByAdminId: ctx.user.id,
-        grantedAt: now,
-      })),
-    );
-  }
-
-  await issueInvitation(ctx, userId, email, input.name);
+        accountId: userId,
+        providerId: "credential",
+        userId,
+        password: passwordHash,
+        createdAt: now,
+        updatedAt: now,
+      }),
+      tx.insert(customerProfile).values({
+        id: profileId,
+        userId,
+        companyName: input.companyName.trim(),
+        createdByAdminId: ctx.user.id,
+        createdAt: now,
+        updatedAt: now,
+      }),
+      tx.insert(customerProject).values({
+        id: projectId,
+        customerProfileId: profileId,
+        title: input.projectTitle.trim(),
+        packageId: input.packageId ?? null,
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      }),
+      tx.insert(invitation).values({
+        id: inviteId,
+        userId,
+        email,
+        tokenHash,
+        expiresAt: new Date(now.getTime() + INVITE_TTL_MS),
+        usedAt: null,
+        revokedAt: null,
+        createdByAdminId: ctx.user.id,
+        createdAt: now,
+      }),
+      tx.insert(emailOutbox).values(outbox),
+    ];
+    if (allowedKeys.length > 0) {
+      statements.push(
+        tx.insert(projectFormAccess).values(
+          allowedKeys.map((formKey) => ({
+            id: createId(),
+            projectId,
+            formKey,
+            grantedByAdminId: ctx.user.id,
+            grantedAt: now,
+          })),
+        ),
+      );
+    }
+    return statements;
+  });
   await writeAudit(ctx.db, {
     type: "customer.created",
     actorUserId: ctx.user.id,
@@ -98,7 +155,7 @@ export async function createCustomerWithInvite(
     resourceId: userId,
     result: "ok",
   });
-
+  await enqueueOutbox(ctx.db, ctx.bindings.EMAIL_QUEUE, outbox.id);
   return { userId, profileId, projectId };
 }
 
@@ -109,39 +166,93 @@ export async function issueInvitation(
   name: string,
 ) {
   const now = nowMs();
-  await ctx.db
-    .update(invitation)
-    .set({ revokedAt: new Date(now) })
+  const openInvites = await ctx.db
+    .select()
+    .from(invitation)
     .where(and(eq(invitation.userId, userId), isNull(invitation.usedAt), isNull(invitation.revokedAt)));
 
   const token = randomToken(32);
   const tokenHash = await hmacSha256Hex(ctx.env.BETTER_AUTH_SECRET, token);
-  await ctx.db.insert(invitation).values({
-    id: createId(),
-    userId,
-    email,
-    tokenHash,
-    expiresAt: new Date(now + INVITE_TTL_MS),
-    usedAt: null,
-    revokedAt: null,
-    createdByAdminId: ctx.user.id,
-    createdAt: new Date(now),
-  });
-
-  const actionUrl = `${ctx.env.NEXT_PUBLIC_SITE_URL}/konto/einrichten?token=${token}`;
-  await sendTransactionalEmailDirect(ctx.env, {
+  const inviteId = createId();
+  const outbox = buildOutboxRow({
+    type: "invite-setup",
     toEmail: email,
     toName: name,
     templateKey: "invite-setup",
-    payload: { name, actionUrl },
+    payload: {
+      name,
+      actionUrl: `${ctx.env.NEXT_PUBLIC_SITE_URL}/konto/einrichten?token=${token}`,
+    },
+    relatedResourceType: "invitation",
+    relatedResourceId: inviteId,
   });
+
+  await runAtomicStatements(ctx.db, (tx) => {
+    const statements: unknown[] = [
+      tx
+        .update(invitation)
+        .set({ revokedAt: new Date(now) })
+        .where(and(eq(invitation.userId, userId), isNull(invitation.usedAt), isNull(invitation.revokedAt))),
+      tx.insert(invitation).values({
+        id: inviteId,
+        userId,
+        email,
+        tokenHash,
+        expiresAt: new Date(now + INVITE_TTL_MS),
+        usedAt: null,
+        revokedAt: null,
+        createdByAdminId: ctx.user.id,
+        createdAt: new Date(now),
+      }),
+      tx.insert(emailOutbox).values(outbox),
+    ];
+    if (openInvites.length > 0) {
+      statements.push(
+        tx
+          .update(emailOutbox)
+          .set({
+            cancelledAt: new Date(now),
+            status: "failed",
+            lastError: "superseded",
+            updatedAt: new Date(now),
+          })
+          .where(
+            and(
+              eq(emailOutbox.relatedResourceType, "invitation"),
+              inArray(
+                emailOutbox.relatedResourceId,
+                openInvites.map((item) => item.id),
+              ),
+              inArray(emailOutbox.status, ["pending", "processing"]),
+            ),
+          ),
+      );
+    }
+    return statements;
+  });
+  await enqueueOutbox(ctx.db, ctx.bindings.EMAIL_QUEUE, outbox.id);
 }
 
 export async function revokeInvitation(ctx: AuthedContext, invitationId: string) {
-  await ctx.db
-    .update(invitation)
-    .set({ revokedAt: new Date(nowMs()) })
-    .where(eq(invitation.id, invitationId));
+  const now = new Date(nowMs());
+  await runAtomicStatements(ctx.db, (tx) => [
+    tx.update(invitation).set({ revokedAt: now }).where(eq(invitation.id, invitationId)),
+    tx
+      .update(emailOutbox)
+      .set({
+        cancelledAt: now,
+        status: "failed",
+        lastError: "superseded",
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(emailOutbox.relatedResourceType, "invitation"),
+          eq(emailOutbox.relatedResourceId, invitationId),
+          inArray(emailOutbox.status, ["pending", "processing"]),
+        ),
+      ),
+  ]);
 }
 
 export async function completeInvitation(options: {
@@ -150,41 +261,52 @@ export async function completeInvitation(options: {
   password: string;
   name?: string;
 }) {
-  const tokenHash = await hmacSha256Hex(options.ctx.env.BETTER_AUTH_SECRET, options.token);
-  const rows = await options.ctx.db
-    .select()
-    .from(invitation)
-    .where(eq(invitation.tokenHash, tokenHash))
-    .limit(1);
-  const invite = rows[0];
-  if (!invite || invite.revokedAt || invite.usedAt) {
-    throw new Error("Dieser Einrichtungs-Link ist ungültig oder nicht mehr gültig.");
-  }
-  if (invite.expiresAt.getTime() < nowMs()) {
-    throw new Error("Dieser Einrichtungs-Link ist abgelaufen.");
-  }
   if (options.password.length < 12) {
-    throw new Error("Bitte wählen Sie ein Passwort mit mindestens 12 Zeichen.");
+    throw new InvitationError("Bitte wählen Sie ein Passwort mit mindestens 12 Zeichen.");
   }
-
   const passwordHash = await hashPassword(options.password);
-  await options.ctx.db
-    .update(account)
-    .set({ password: passwordHash, updatedAt: new Date(nowMs()) })
-    .where(and(eq(account.userId, invite.userId), eq(account.providerId, "credential")));
-  if (options.name?.trim()) {
-    await options.ctx.db
+  const tokenHash = await hmacSha256Hex(options.ctx.env.BETTER_AUTH_SECRET, options.token);
+  const consumeId = createId();
+  const now = new Date(nowMs());
+  const name = options.name?.trim();
+
+  const userPatch = name
+    ? { emailVerified: true as const, name, updatedAt: now }
+    : { emailVerified: true as const, updatedAt: now };
+
+  await runAtomicStatements(options.ctx.db, (tx) => [
+    tx
+      .update(invitation)
+      .set({ usedAt: now, consumeId })
+      .where(
+        and(
+          eq(invitation.tokenHash, tokenHash),
+          isNull(invitation.usedAt),
+          isNull(invitation.revokedAt),
+          gt(invitation.expiresAt, now),
+        ),
+      ),
+    tx
+      .update(account)
+      .set({ password: passwordHash, updatedAt: now })
+      .where(
+        and(
+          eq(account.providerId, "credential"),
+          sql`user_id = (select user_id from invitation where consume_id = ${consumeId})`,
+        ),
+      ),
+    tx
       .update(user)
-      .set({ name: options.name.trim(), emailVerified: true, updatedAt: new Date(nowMs()) })
-      .where(eq(user.id, invite.userId));
-  } else {
-    await options.ctx.db
-      .update(user)
-      .set({ emailVerified: true, updatedAt: new Date(nowMs()) })
-      .where(eq(user.id, invite.userId));
+      .set(userPatch)
+      .where(sql`id = (select user_id from invitation where consume_id = ${consumeId})`),
+  ]);
+
+  const claimed = await options.ctx.db
+    .select({ id: invitation.id })
+    .from(invitation)
+    .where(eq(invitation.consumeId, consumeId))
+    .limit(1);
+  if (!claimed[0]) {
+    throw new InvitationError("Dieser Einrichtungs-Link ist ungültig oder nicht mehr gültig.");
   }
-  await options.ctx.db
-    .update(invitation)
-    .set({ usedAt: new Date(nowMs()) })
-    .where(eq(invitation.id, invite.id));
 }

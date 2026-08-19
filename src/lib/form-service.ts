@@ -3,12 +3,13 @@ import { emailOutbox, formDraft, formSubmission } from "@/db/schema";
 import { writeAudit } from "@/lib/audit";
 import type { AuthedContext } from "@/lib/authorization";
 import { assertCustomerRole, requireFormAccess } from "@/lib/authorization";
+import { maxCorrectionRounds } from "@/lib/correction-rounds";
 import { createId, createReferenceNumber, jsonParse, jsonStringify, nowMs } from "@/lib/ids";
 import { buildOutboxRow, enqueueOutbox } from "@/lib/mail/outbox";
+import { requireNormalizedFormValues } from "@/lib/form-values";
 import {
   emptyFormValues,
   requireFormDefinition,
-  validateFormValues,
   type FormValues,
 } from "@/lib/form-validation";
 
@@ -26,12 +27,24 @@ export class FormLockedError extends Error {
   }
 }
 
+function isUniqueConflict(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /UNIQUE constraint failed/i.test(message);
+}
+
+export type CorrectionState = {
+  submittedCount: number;
+  maxRounds: number;
+  canStartNextRound: boolean;
+  locked: boolean;
+};
+
 export async function loadDraftOrSubmission(
   ctx: AuthedContext,
   projectId: string,
   formKey: string,
 ) {
-  await requireFormAccess(ctx, projectId, formKey);
+  const { project } = await requireFormAccess(ctx, projectId, formKey);
   const form = requireFormDefinition(formKey);
 
   const drafts = await ctx.db
@@ -56,11 +69,21 @@ export async function loadDraftOrSubmission(
         eq(formSubmission.formKey, formKey),
       ),
     )
-    .orderBy(desc(formSubmission.version))
-    .limit(5);
+    .orderBy(desc(formSubmission.version));
 
   const draft = drafts[0] ?? null;
   const latestSubmission = submissions[0] ?? null;
+  const maxRounds = maxCorrectionRounds(project.packageId);
+  const submittedCount = submissions.length;
+  const canStartNextRound =
+    formKey === "korrekturen" &&
+    submittedCount > 0 &&
+    submittedCount < maxRounds &&
+    (!draft || draft.status === "submitted");
+  const locked =
+    formKey === "korrekturen"
+      ? submittedCount >= maxRounds && (!draft || draft.status === "submitted")
+      : Boolean(latestSubmission) && (!draft || draft.status === "submitted");
 
   return {
     form,
@@ -78,10 +101,13 @@ export async function loadDraftOrSubmission(
         },
     submissions,
     latestSubmission,
-    locked:
-      Boolean(latestSubmission) &&
-      formKey !== "korrekturen" &&
-      (!draft || draft.status === "submitted"),
+    locked,
+    correction: {
+      submittedCount,
+      maxRounds,
+      canStartNextRound,
+      locked,
+    } satisfies CorrectionState,
   };
 }
 
@@ -97,6 +123,7 @@ export async function saveDraft(options: {
   assertCustomerRole(ctx);
   await requireFormAccess(ctx, projectId, formKey);
   const form = requireFormDefinition(formKey);
+  const values = requireNormalizedFormValues(form, options.values, "draft");
   const existing = await ctx.db
     .select()
     .from(formDraft)
@@ -113,6 +140,9 @@ export async function saveDraft(options: {
   if (current?.status === "submitted" && formKey !== "korrekturen") {
     throw new FormLockedError();
   }
+  if (current?.status === "submitted" && formKey === "korrekturen") {
+    throw new FormLockedError();
+  }
 
   const now = new Date(nowMs());
   if (!current) {
@@ -122,7 +152,7 @@ export async function saveDraft(options: {
       projectId,
       formKey,
       schemaVersion: form.schemaVersion,
-      payloadJson: jsonStringify(options.values),
+      payloadJson: jsonStringify(values),
       stepIndex: options.stepIndex,
       revision: 1,
       status: "draft" as const,
@@ -141,7 +171,7 @@ export async function saveDraft(options: {
   const updated = await ctx.db
     .update(formDraft)
     .set({
-      payloadJson: jsonStringify(options.values),
+      payloadJson: jsonStringify(values),
       stepIndex: options.stepIndex,
       schemaVersion: form.schemaVersion,
       revision: nextRevision,
@@ -164,25 +194,24 @@ export async function submitForm(options: {
 }) {
   const { ctx, projectId, formKey } = options;
   assertCustomerRole(ctx);
-  await requireFormAccess(ctx, projectId, formKey);
+  const { project } = await requireFormAccess(ctx, projectId, formKey);
   const form = requireFormDefinition(formKey);
+  const values = requireNormalizedFormValues(form, options.values, "submit");
 
   const existingByKey = await ctx.db
     .select()
     .from(formSubmission)
-    .where(eq(formSubmission.idempotencyKey, options.idempotencyKey))
+    .where(
+      and(
+        eq(formSubmission.userId, ctx.user.id),
+        eq(formSubmission.projectId, projectId),
+        eq(formSubmission.formKey, formKey),
+        eq(formSubmission.idempotencyKey, options.idempotencyKey),
+      ),
+    )
     .limit(1);
   if (existingByKey[0]) {
     return existingByKey[0];
-  }
-
-  const errors = validateFormValues(form, options.values, "all");
-  if (Object.keys(errors).length > 0) {
-    const error = new Error("Bitte prüfen Sie Ihre Angaben.") as Error & {
-      fieldErrors: Record<string, string>;
-    };
-    error.fieldErrors = errors;
-    throw error;
   }
 
   const latest = await ctx.db
@@ -198,7 +227,11 @@ export async function submitForm(options: {
     .orderBy(desc(formSubmission.version))
     .limit(1);
 
+  const maxRounds = maxCorrectionRounds(project.packageId);
   if (latest[0] && formKey !== "korrekturen") {
+    throw new FormLockedError();
+  }
+  if (formKey === "korrekturen" && latest[0] && latest[0].version >= maxRounds) {
     throw new FormLockedError();
   }
 
@@ -210,7 +243,7 @@ export async function submitForm(options: {
     projectId,
     formKey,
     schemaVersion: form.schemaVersion,
-    payloadJson: jsonStringify(options.values),
+    payloadJson: jsonStringify(values),
     version,
     idempotencyKey: options.idempotencyKey,
     referenceNumber: createReferenceNumber(),
@@ -239,36 +272,47 @@ export async function submitForm(options: {
     relatedResourceId: submission.id,
   });
 
-  if (typeof ctx.db.batch === "function") {
-    await ctx.db.batch([
-      ctx.db.insert(formSubmission).values(submission),
-      ctx.db
-        .update(formDraft)
-        .set({ status: "submitted", updatedAt: now })
+  const insertSubmission = ctx.db.insert(formSubmission).values(submission);
+  const updateDraft = ctx.db
+    .update(formDraft)
+    .set({ status: "submitted", updatedAt: now, payloadJson: jsonStringify(values) })
+    .where(
+      and(
+        eq(formDraft.userId, ctx.user.id),
+        eq(formDraft.projectId, projectId),
+        eq(formDraft.formKey, formKey),
+      ),
+    );
+  const insertVisitor = ctx.db.insert(emailOutbox).values(visitorOutbox);
+  const insertAdmin = ctx.db.insert(emailOutbox).values(adminOutbox);
+
+  try {
+    if (typeof ctx.db.batch === "function") {
+      await ctx.db.batch([insertSubmission, updateDraft, insertVisitor, insertAdmin]);
+    } else {
+      await insertSubmission;
+      await updateDraft;
+      await insertVisitor;
+      await insertAdmin;
+    }
+  } catch (error) {
+    if (isUniqueConflict(error)) {
+      const replay = await ctx.db
+        .select()
+        .from(formSubmission)
         .where(
           and(
-            eq(formDraft.userId, ctx.user.id),
-            eq(formDraft.projectId, projectId),
-            eq(formDraft.formKey, formKey),
+            eq(formSubmission.userId, ctx.user.id),
+            eq(formSubmission.projectId, projectId),
+            eq(formSubmission.formKey, formKey),
+            eq(formSubmission.idempotencyKey, options.idempotencyKey),
           ),
-        ),
-      ctx.db.insert(emailOutbox).values(visitorOutbox),
-      ctx.db.insert(emailOutbox).values(adminOutbox),
-    ]);
-  } else {
-    await ctx.db.insert(formSubmission).values(submission);
-    await ctx.db
-      .update(formDraft)
-      .set({ status: "submitted", updatedAt: now })
-      .where(
-        and(
-          eq(formDraft.userId, ctx.user.id),
-          eq(formDraft.projectId, projectId),
-          eq(formDraft.formKey, formKey),
-        ),
-      );
-    await ctx.db.insert(emailOutbox).values(visitorOutbox);
-    await ctx.db.insert(emailOutbox).values(adminOutbox);
+        )
+        .limit(1);
+      if (replay[0]) return replay[0];
+      throw new FormLockedError();
+    }
+    throw error;
   }
 
   await writeAudit(ctx.db, {
@@ -290,26 +334,78 @@ export async function startCorrectionRound(
   projectId: string,
   formKey: string,
 ) {
+  assertCustomerRole(ctx);
   if (formKey !== "korrekturen") {
     throw new FormLockedError();
   }
-  await requireFormAccess(ctx, projectId, formKey);
+  const { project } = await requireFormAccess(ctx, projectId, formKey);
   const form = requireFormDefinition(formKey);
+  const maxRounds = maxCorrectionRounds(project.packageId);
+  const submissions = await ctx.db
+    .select({ version: formSubmission.version })
+    .from(formSubmission)
+    .where(
+      and(
+        eq(formSubmission.userId, ctx.user.id),
+        eq(formSubmission.projectId, projectId),
+        eq(formSubmission.formKey, formKey),
+      ),
+    );
+  if (submissions.length < 1 || submissions.length >= maxRounds) {
+    throw new FormLockedError();
+  }
+
   const now = new Date(nowMs());
-  await ctx.db
-    .update(formDraft)
-    .set({
-      status: "draft",
-      payloadJson: jsonStringify(emptyFormValues(form)),
-      stepIndex: 0,
-      revision: sql`${formDraft.revision} + 1`,
-      updatedAt: now,
-    })
+  const existing = await ctx.db
+    .select()
+    .from(formDraft)
     .where(
       and(
         eq(formDraft.userId, ctx.user.id),
         eq(formDraft.projectId, projectId),
         eq(formDraft.formKey, formKey),
       ),
-    );
+    )
+    .limit(1);
+
+  if (existing[0]?.status === "draft") {
+    return { revision: existing[0].revision };
+  }
+
+  const empty = emptyFormValues(form);
+  if (!existing[0]) {
+    await ctx.db.insert(formDraft).values({
+      id: createId(),
+      userId: ctx.user.id,
+      projectId,
+      formKey,
+      schemaVersion: form.schemaVersion,
+      payloadJson: jsonStringify(empty),
+      stepIndex: 0,
+      revision: 1,
+      status: "draft",
+      createdAt: now,
+      updatedAt: now,
+    });
+    return { revision: 1 };
+  }
+
+  const updated = await ctx.db
+    .update(formDraft)
+    .set({
+      status: "draft",
+      payloadJson: jsonStringify(empty),
+      stepIndex: 0,
+      revision: sql`${formDraft.revision} + 1`,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(formDraft.id, existing[0].id),
+        eq(formDraft.status, "submitted"),
+      ),
+    )
+    .returning({ revision: formDraft.revision });
+  if (!updated[0]) throw new FormLockedError();
+  return { revision: updated[0].revision };
 }

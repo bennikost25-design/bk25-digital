@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     const ip = getClientIp(request);
     const ipHash = await hmacSha256Hex(ctx.env.RATE_LIMIT_SECRET, ip);
     await enforceRateLimit({
-      kv: ctx.bindings.RATE_LIMIT,
+      db: ctx.db,
       secret: ctx.env.RATE_LIMIT_SECRET,
       action: "contact",
       identifier: ipHash,

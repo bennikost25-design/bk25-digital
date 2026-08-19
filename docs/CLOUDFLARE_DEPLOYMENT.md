@@ -6,15 +6,18 @@ Preview und Produktion bleiben strikt getrennt.
 
 **Wichtige Warnungen vorab**
 
-- Die D1-Jurisdiktion kann nach der Erstellung nicht geändert werden.
-- Die normale Cloudflare-Autoprovisionierung darf nicht versehentlich eine unrestricted Produktions-D1 anlegen. Immer `--location=eu` verwenden.
+- `--location` ist nur ein Standort-Hinweis. `--jurisdiction=eu` beschränkt die Datenhaltung auf die EU und kann **nur bei der Erstellung** gesetzt werden. Danach ist die Jurisdiktion unveränderbar.
+- Die normale Cloudflare-Autoprovisionierung darf nicht versehentlich eine unrestricted Produktions-D1 anlegen. Immer `--jurisdiction=eu` verwenden.
+- Produktions-D1 und Preview-D1 müssen getrennt und jeweils manuell mit EU-Jurisdiktion erstellt werden.
 - Preview darf niemals Produktionskundendaten verwenden.
 - DNS-Änderungen dürfen das IONOS-Postfach nicht unterbrechen.
 - SPF darf nicht in mehreren konkurrierenden SPF-TXT-Einträgen angelegt werden. Es gibt nur **einen** SPF-Record.
 - Secrets gehören nicht ins Repository. `.dev.vars` ist gitignoriert.
 - Vor Datenbankmigrationen ist ein Export bzw. Backup sinnvoll.
-- `wrangler.jsonc` ist Source of Truth für Bindings. Die Produktions-D1-ID steht absichtlich auf `REPLACE_WITH_EU_D1_PRODUCTION_ID`.
+- `wrangler.jsonc` ist Source of Truth für Bindings. Die Produktions-D1-ID steht absichtlich auf `REPLACE_WITH_EU_D1_PRODUCTION_ID` und bleibt ein Placeholder, bis sie bewusst ersetzt wird.
 - Lokal: `.dev.vars.example` nach `.dev.vars` kopieren. Diese Datei nicht committen.
+- HSTS ist zunächst `max-age=300` ohne `includeSubDomains` und ohne `preload`. Erst nach erfolgreicher DNS-, HTTPS- und Subdomain-Prüfung schrittweise erhöhen.
+- Passwort-Reset bleibt eine bewusste Ausnahme zum Outbox-Weg: Better Auth erwartet den Versand des Einmallinks synchron. Ein Fehler wird an Better Auth zurückgegeben, damit der Reset scheitert. Einladungsmails laufen über EU-D1-Outbox und Queue.
 
 ## 1. Cloudflare-Konto öffnen
 
@@ -27,15 +30,15 @@ Workers Paid aktivieren. Queues und ausreichende Limits sind dafür erforderlich
 ## 3. Produktions-D1 mit EU-Jurisdiktion erstellen
 
 ```bash
-npx wrangler d1 create bk25-digital-production --location=eu
+npx wrangler d1 create bk25-digital-production --jurisdiction=eu
 ```
 
-Nicht das Dashboard-Default „Create“ ohne Standort verwenden. Die Jurisdiktion ist danach unveränderbar.
+Nicht das Dashboard-Default „Create“ ohne Jurisdiktion verwenden. `--location` ersetzt `--jurisdiction=eu` nicht.
 
 ## 4. Separate Preview-D1 mit EU-Jurisdiktion erstellen
 
 ```bash
-npx wrangler d1 create bk25-digital-preview --location=eu
+npx wrangler d1 create bk25-digital-preview --jurisdiction=eu
 ```
 
 ## 5. Datenbank-IDs in die Konfiguration einsetzen
@@ -45,20 +48,18 @@ In `wrangler.jsonc` ersetzen:
 - `REPLACE_WITH_EU_D1_PRODUCTION_ID`
 - `REPLACE_WITH_EU_D1_PREVIEW_ID`
 
-Niemals die Produktions-ID im Preview-Environment eintragen.
+Niemals die Produktions-ID im Preview-Environment eintragen. Bis dahin bleiben die Placeholder stehen.
 
-## 6. Queue, Dead-Letter-Queue und KV anlegen
+## 6. Queue und Dead-Letter-Queue anlegen
 
 ```bash
 npx wrangler queues create bk25-email-production
 npx wrangler queues create bk25-email-production-dlq
 npx wrangler queues create bk25-email-preview
 npx wrangler queues create bk25-email-preview-dlq
-npx wrangler kv namespace create RATE_LIMIT
-npx wrangler kv namespace create RATE_LIMIT --preview
 ```
 
-IDs für `RATE_LIMIT` in `wrangler.jsonc` einsetzen (`REPLACE_WITH_PRODUCTION_KV_ID` / `REPLACE_WITH_PREVIEW_KV_ID`).
+Rate Limits liegen in D1 (`rate_limit_bucket`). Es gibt keine KV-Bindung `RATE_LIMIT`.
 
 ## 7. Bindings kontrollieren
 
@@ -66,10 +67,12 @@ In `wrangler.jsonc` prüfen:
 
 - Workername Produktion: `bk25-digital`
 - Workername Preview: `bk25-digital-preview`
-- Bindings `DB`, `EMAIL_QUEUE`, `RATE_LIMIT`
+- Bindings `DB`, `EMAIL_QUEUE`
 - Production-Vars: `APP_ENV=production`, `MAIL_MODE=brevo`
 - Preview-Vars: `APP_ENV=preview`, `MAIL_MODE=brevo`
 - Custom Worker-Entrypoint: `workers/app.ts`
+- `compatibility_date`: `2026-08-19`
+- Keine permanente `remote: true`-D1-Konfiguration
 
 ## 8. Migrationen zuerst lokal, dann Preview, danach Produktion
 
@@ -87,7 +90,7 @@ Kryptografisch zufällig, mindestens 32 Zeichen, getrennt für Preview und Produ
 
 ## 10. Turnstile-Widget erstellen
 
-Widget für die Livedomain anlegen. Hostnamen eintragen. Dummy-Keys nur lokal verwenden (siehe `.dev.vars.example`).
+Widget für die Livedomain anlegen. Hostnamen eintragen. Dummy-Keys nur lokal verwenden (siehe `.dev.vars.example`). Preview und Produktion müssen alle Turnstile-Werte explizit erhalten.
 
 ## 11. Brevo-Konto und Absenderdomain verifizieren
 
@@ -104,25 +107,37 @@ Je Environment (Preview und Produktion getrennt):
 - `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
 - `TURNSTILE_EXPECTED_HOSTNAME`
 - `RATE_LIMIT_SECRET`
-- `ORIGIN_SECRET`
 - `MAIL_FROM_EMAIL`
 - `MAIL_FROM_NAME`
 - `ADMIN_NOTIFICATION_EMAIL`
 - `BREVO_API_KEY`
 
-Produktion: `MAIL_MODE=brevo`. Mock-Mail ist dort absichtlich verboten und führt zu einem sicheren Fehlschlag.
+Produktion: `MAIL_MODE=brevo`. Unbekannte Werte (z. B. `MAIL_MODE=brevvo`) und Mock-Mail führen zum Startabbruch. In Produktion müssen `BETTER_AUTH_URL` und `NEXT_PUBLIC_SITE_URL` gültige HTTPS-URLs desselben Ursprungs sein.
 
 ## 13. Ersten Admin sicher anlegen
 
-Kein öffentlicher Bootstrap-Endpunkt. Keine fest eingebauten Passwörter.
+Kein öffentlicher Bootstrap-Endpunkt. Keine fest eingebauten Passwörter. Passwort und Hash weder loggen noch dauerhaft in einer Datei belassen.
 
-Lokal nach Migration:
+### Lokaler Bootstrap
+
+`getPlatformProxy()` ohne explizite Remote-Konfiguration ist **nur** der lokale Bootstrap und darf niemals als Produktions-Bootstrap verwendet werden.
 
 ```bash
+npm run db:migrate:local
 BOOTSTRAP_ADMIN_EMAIL=... BOOTSTRAP_ADMIN_PASSWORD=... npm run bootstrap:admin
 ```
 
-Für Produktion denselben Vorgang gegen die Produktions-D1 nur bewusst und einmalig ausführen, sobald Bindings stehen. Idempotent: vorhandener Admin wird nicht überschrieben.
+Idempotent: ein vorhandener Admin wird nicht überschrieben. Ein vorhandener Nicht-Admin mit derselben E-Mail bricht sicher ab.
+
+### Produktionsbootstrap
+
+Zwingend `production`, `--remote` und `--confirm-production`. Remote-Zugriff nur über Wrangler D1 mit `--env production --remote`. Keine permanente `remote: true`-D1-Bindung in `wrangler.jsonc`.
+
+```bash
+BOOTSTRAP_ADMIN_EMAIL=... BOOTSTRAP_ADMIN_PASSWORD=... node scripts/bootstrap-admin.mjs --production --remote --confirm-production
+```
+
+Diesen Produktionsablauf nicht „nebenbei“ ausführen. Erst nach Bindings, Migrationen und Secrets bewusst einmalig.
 
 ## 14. GitHub-Repository mit Workers Builds verbinden
 
@@ -134,8 +149,12 @@ Produktion: `bk25-digital`. Preview: `bk25-digital-preview`.
 
 ## 16. Build- und Deploy-Befehle konfigurieren
 
-- Build: `npx opennextjs-cloudflare build`
-- Deploy nur über Cloudflare Workers Builds, nicht lokal `wrangler deploy` / `npm run deploy`
+Für Workers Builds exakt:
+
+- Build command: `npx @opennextjs/cloudflare build`
+- Deploy command: `npx @opennextjs/cloudflare deploy`
+
+Nicht lokal `wrangler deploy` als Ersatzarchitektur verwenden.
 
 ## 17. Zunächst nur eine Preview-Version erstellen
 
@@ -149,6 +168,7 @@ Noch keine Custom Domain und keine Produktionsdaten.
 - Einladung
 - Entwurf speichern
 - Technische Abgabe
+- Zweite Korrekturrunde im Komplettpaket
 - Adminbereich: Kontakt, Einreichungen, E-Mail-Status
 
 ## 19. Domain zu Cloudflare hinzufügen
@@ -171,7 +191,7 @@ Apex und www nach Bedarf. HTTPS von Cloudflare.
 
 ## 23. HTTPS und Weiterleitungen prüfen
 
-Zertifikat, www/apex, keine offenen HTTP-Inhalte.
+Zertifikat, www/apex, keine offenen HTTP-Inhalte. HSTS danach schrittweise erhöhen, nicht sofort `preload` setzen.
 
 ## 24. Rechtliche Platzhalter ausfüllen
 
@@ -207,6 +227,10 @@ Mit Testdaten, nicht mit echten Klientendaten.
 - D1 nicht ungeprüft rückwärts migrieren; Restore aus Export verwenden.
 - Vor jeder Produktionsmigration `wrangler d1 export` bzw. Dashboard-Export.
 - Preview-Rollback betrifft nur Preview-D1.
+
+## Outbox-Lease
+
+E-Mails in `processing` werden nach 5 Minuten wieder beanspruchbar (`OUTBOX_LEASE_MS`). Der Cron berücksichtigt fällige `pending`-Einträge und abgelaufene Processing-Leases, jeweils begrenzt (`OUTBOX_REQUEUE_LIMIT`). Nach 8 Versuchen bleibt ein klarer Fehlerstatus. Manuelles Retry im Adminbereich setzt den Eintrag wieder auf `pending`.
 
 ## Lokale Vorbereitung ohne Cloudflare-Konto
 

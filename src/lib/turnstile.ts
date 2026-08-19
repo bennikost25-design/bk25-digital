@@ -35,11 +35,15 @@ export async function verifyTurnstile(options: {
       "error-codes"?: string[];
     };
     if (!data.success) return { ok: false, reason: "invalid" };
-    if (options.expectedHostname && data.hostname && data.hostname !== options.expectedHostname) {
-      return { ok: false, reason: "invalid" };
+    if (options.expectedHostname) {
+      if (!data.hostname || data.hostname !== options.expectedHostname) {
+        return { ok: false, reason: "invalid" };
+      }
     }
-    if (options.expectedAction && data.action && data.action !== options.expectedAction) {
-      return { ok: false, reason: "invalid" };
+    if (options.expectedAction) {
+      if (!data.action || data.action !== options.expectedAction) {
+        return { ok: false, reason: "invalid" };
+      }
     }
     return { ok: true };
   } catch {

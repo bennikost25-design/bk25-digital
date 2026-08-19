@@ -10,6 +10,7 @@ export function CustomerFormShell({
   initialStep,
   initialRevision,
   submission,
+  correction,
 }: {
   form: CustomerFormDefinition;
   projectId: string;
@@ -23,6 +24,12 @@ export function CustomerFormShell({
     schemaVersion: number;
     values: Record<string, unknown>;
   } | null;
+  correction?: {
+    submittedCount: number;
+    maxRounds: number;
+    canStartNextRound: boolean;
+    locked: boolean;
+  };
 }) {
   return (
     <div className="min-h-full bg-light text-black">
@@ -51,6 +58,7 @@ export function CustomerFormShell({
             initialStep={initialStep}
             initialRevision={initialRevision}
             submission={submission}
+            correction={correction}
           />
         </div>
       </div>

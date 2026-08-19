@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BK25 Digital
 
-## Getting Started
+Öffentliche Website und geschützter Kundenbereich für BK25. Das **einzige Deployment-Ziel** ist Cloudflare Workers (Paid) mit OpenNext, D1 (EU-Jurisdiktion), Queues, Turnstile und Brevo.
 
-First, run the development server:
+## Lokal starten
 
 ```bash
+copy .dev.vars.example .dev.vars
+npm install
+npm run db:migrate:local
+npm run bootstrap:admin
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Öffnen Sie [http://localhost:3000](http://localhost:3000). `.dev.vars` nicht committen.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Qualitätssicherung
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm run build:opennext
+npx drizzle-kit check
+```
 
-## Learn More
+## Deployment
 
-To learn more about Next.js, take a look at the following resources:
+Es gibt keine Vercel-Zielarchitektur. Produktion und Preview laufen ausschließlich auf Cloudflare Workers.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Workers Builds (exakt):
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Build command: `npx @opennextjs/cloudflare build`
+- Deploy command: `npx @opennextjs/cloudflare deploy`
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Vor dem ersten Livegang die Schritte in `docs/CLOUDFLARE_DEPLOYMENT.md` und `docs/PRODUCTION_CHECKLIST.md` ausführen. D1-Datenbanken müssen **manuell** mit `--jurisdiction=eu` erstellt werden. Platzhalter-IDs in `wrangler.jsonc` bleiben Platzhalter, bis sie bewusst ersetzt werden.

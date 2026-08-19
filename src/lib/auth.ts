@@ -39,12 +39,19 @@ export function createAuth(db: AppDb, env: AppEnv) {
       minPasswordLength: 12,
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: async ({ user, url }) => {
-        await sendTransactionalEmailDirect(env, {
-          toEmail: user.email,
-          toName: user.name,
-          templateKey: "password-reset",
-          payload: { name: user.name, actionUrl: url },
-        });
+        // Bewusste Ausnahme: Better Auth erwartet den Versand des Einmallinks
+        // synchron. Ein Outbox-Umweg würde den Token aus dem Auth-Flow lösen.
+        // Fehler werden deshalb hier weitergeworfen, damit der Reset scheitert.
+        try {
+          await sendTransactionalEmailDirect(env, {
+            toEmail: user.email,
+            toName: user.name,
+            templateKey: "password-reset",
+            payload: { name: user.name, actionUrl: url },
+          });
+        } catch {
+          throw new Error("Passwort-Hinweis konnte nicht gesendet werden.");
+        }
       },
     },
     user: {
@@ -71,6 +78,9 @@ export function createAuth(db: AppDb, env: AppEnv) {
       },
     },
     advanced: {
+      ipAddress: {
+        disableIpTracking: true,
+      },
       useSecureCookies: isSecure,
       defaultCookieAttributes: {
         httpOnly: true,

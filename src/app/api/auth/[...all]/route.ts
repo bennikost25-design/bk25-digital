@@ -21,7 +21,7 @@ async function handle(request: Request) {
     try {
       const ipHash = await hmacSha256Hex(ctx.env.RATE_LIMIT_SECRET, getClientIp(request));
       await enforceRateLimit({
-        kv: ctx.bindings.RATE_LIMIT,
+        db: ctx.db,
         secret: ctx.env.RATE_LIMIT_SECRET,
         action: isSignIn ? "login" : "password-reset",
         identifier: isSignIn ? ipHash : `${ipHash}:reset`,

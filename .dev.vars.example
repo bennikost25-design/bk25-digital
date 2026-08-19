@@ -15,16 +15,17 @@ NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA
 TURNSTILE_EXPECTED_HOSTNAME=localhost
 
 RATE_LIMIT_SECRET=local-rate-limit-secret-not-for-production
-ORIGIN_SECRET=local-origin-secret-not-for-production
 
-MAIL_FROM_EMAIL=noreply@localhost
+MAIL_FROM_EMAIL=noreply@localhost.test
 MAIL_FROM_NAME=BK25 Digital
-ADMIN_NOTIFICATION_EMAIL=admin@localhost
+ADMIN_NOTIFICATION_EMAIL=admin@localhost.test
 
 # Leave empty in local mock mode. Production must set a real key.
 BREVO_API_KEY=
 
-# Optional: used only by `npm run bootstrap:admin`
+# Optional: used only by the local bootstrap (`npm run bootstrap:admin`).
+# Production bootstrap is a separate, explicit command:
+# node scripts/bootstrap-admin.mjs --production --remote --confirm-production
 BOOTSTRAP_ADMIN_EMAIL=
 BOOTSTRAP_ADMIN_PASSWORD=
 BOOTSTRAP_ADMIN_NAME=Benni

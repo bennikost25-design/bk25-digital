@@ -19,7 +19,7 @@ import { parseAppEnv } from "@/lib/env";
 import { saveDraft, submitForm } from "@/lib/form-service";
 import { emptyFormValues, requireFormDefinition } from "@/lib/form-validation";
 import { hmacSha256Hex } from "@/lib/crypto";
-import { MemoryKv, createTestDb, localEnv } from "./helpers";
+import { createTestDb, localEnv } from "./helpers";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { processOutboxId } from "../src/server/email-processor";
@@ -32,7 +32,6 @@ function asCtx(db: AuthedContext["db"], userId: string, role: "admin" | "custome
     env,
     bindings: {
       DB: {} as D1Database,
-      RATE_LIMIT: {} as KVNamespace,
       EMAIL_QUEUE: { send: async () => undefined } as unknown as Queue,
     },
     user: { id: userId, email: `${role}@example.test`, name: role, role },
@@ -276,11 +275,27 @@ describe("turnstile, rate limit, env", () => {
   });
 
   it("rate-limits repeated actions", async () => {
-    const kv = new MemoryKv();
+    const { db } = createTestDb();
     const identifier = await hmacSha256Hex("secret", "1.1.1.1");
-    await enforceRateLimit({ kv, secret: "secret", action: "login", identifier, limit: 1, windowSeconds: 60, failClosed: true });
+    await enforceRateLimit({
+      db,
+      secret: "secret",
+      action: "login",
+      identifier,
+      limit: 1,
+      windowSeconds: 60,
+      failClosed: true,
+    });
     await expect(
-      enforceRateLimit({ kv, secret: "secret", action: "login", identifier, limit: 1, windowSeconds: 60, failClosed: true }),
+      enforceRateLimit({
+        db,
+        secret: "secret",
+        action: "login",
+        identifier,
+        limit: 1,
+        windowSeconds: 60,
+        failClosed: true,
+      }),
     ).rejects.toBeInstanceOf(RateLimitError);
   });
 
@@ -293,8 +308,9 @@ describe("turnstile, rate limit, env", () => {
         BETTER_AUTH_URL: "https://example.de",
         NEXT_PUBLIC_SITE_URL: "https://example.de",
         TURNSTILE_SECRET_KEY: "s",
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: "1x00000000000000000000AA",
+        TURNSTILE_EXPECTED_HOSTNAME: "example.de",
         RATE_LIMIT_SECRET: "s",
-        ORIGIN_SECRET: "s",
         MAIL_FROM_EMAIL: "a@b.de",
         MAIL_FROM_NAME: "BK25",
         ADMIN_NOTIFICATION_EMAIL: "a@b.de",

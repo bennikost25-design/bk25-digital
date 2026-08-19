@@ -1,11 +1,13 @@
 {
-  // Production D1 MUST be created manually with --location=eu.
+  // Production D1 MUST be created manually with --jurisdiction=eu.
+  // --location is only a hint; --jurisdiction=eu is the data-residency constraint
+  // and can only be set at creation time.
   // Never auto-provision an unrestricted production database.
   // Replace REPLACE_WITH_EU_D1_PRODUCTION_ID before the first production deploy.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "bk25-digital",
   "main": "workers/app.ts",
-  "compatibility_date": "2025-12-30",
+  "compatibility_date": "2026-08-19",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "preview_urls": true,
   "assets": {
@@ -31,12 +33,6 @@
       "database_name": "bk25-digital-local",
       "database_id": "local-dev-not-for-production",
       "migrations_dir": "drizzle",
-    },
-  ],
-  "kv_namespaces": [
-    {
-      "binding": "RATE_LIMIT",
-      "id": "local-dev-kv-not-for-production",
     },
   ],
   "queues": {
@@ -78,12 +74,6 @@
           "migrations_dir": "drizzle",
         },
       ],
-      "kv_namespaces": [
-        {
-          "binding": "RATE_LIMIT",
-          "id": "REPLACE_WITH_PREVIEW_KV_ID",
-        },
-      ],
       "queues": {
         "producers": [
           {
@@ -118,12 +108,6 @@
           "database_name": "bk25-digital-production",
           "database_id": "REPLACE_WITH_EU_D1_PRODUCTION_ID",
           "migrations_dir": "drizzle",
-        },
-      ],
-      "kv_namespaces": [
-        {
-          "binding": "RATE_LIMIT",
-          "id": "REPLACE_WITH_PRODUCTION_KV_ID",
         },
       ],
       "queues": {

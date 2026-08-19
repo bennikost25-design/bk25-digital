@@ -11,6 +11,7 @@ import {
   loadDraftOrSubmission,
   saveDraft,
 } from "@/lib/form-service";
+import { FormValueError } from "@/lib/form-values";
 import { BodyLimitError, apiError, readJsonBody } from "@/lib/http";
 import { OriginError, assertTrustedOrigin } from "@/lib/origin";
 
@@ -40,6 +41,7 @@ export async function GET(
           ? data.draft.updatedAt.toISOString?.() ?? data.draft.updatedAt
           : null,
       locked: data.locked,
+      correction: data.correction,
       submission: data.latestSubmission
         ? {
             id: data.latestSubmission.id,
@@ -81,6 +83,9 @@ export async function PUT(
     if (error instanceof FormLockedError) return apiError(error.message, 409);
     if (error instanceof AuthError) return jsonError(error);
     if (error instanceof BodyLimitError) return apiError(error.message, 413);
+    if (error instanceof FormValueError) {
+      return apiError(error.message, 400, { fieldErrors: error.fieldErrors });
+    }
     if (error instanceof z.ZodError) return apiError("Ungültige Anfrage.", 400);
     return apiError("Speichern nicht möglich.", 500);
   }

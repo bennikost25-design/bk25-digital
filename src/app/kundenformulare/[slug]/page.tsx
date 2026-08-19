@@ -64,6 +64,7 @@ export default async function CustomerFormPage({ params, searchParams }: Props) 
             }
           : null
       }
+      correction={loaded.correction}
     />
   );
 }

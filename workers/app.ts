@@ -1,6 +1,5 @@
 /// <reference types="@cloudflare/workers-types" />
 
-// @ts-expect-error -- generated after OpenNext build
 import { default as handler } from "../.open-next/worker.js";
 import { processEmailQueueBatch, requeueStuckOutbox } from "../src/server/email-processor";
 
@@ -11,7 +10,7 @@ export default {
       const headers = new Headers(response.headers);
       headers.set(
         "Strict-Transport-Security",
-        "max-age=63072000; includeSubDomains; preload",
+        "max-age=300",
       );
       return new Response(response.body, {
         status: response.status,
@@ -31,5 +30,4 @@ export default {
   },
 } satisfies ExportedHandler<CloudflareEnv>;
 
-// @ts-expect-error -- generated after OpenNext build
 export { DOQueueHandler, DOShardedTagCache } from "../.open-next/worker.js";

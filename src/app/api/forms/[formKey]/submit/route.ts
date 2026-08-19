@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { AuthError, jsonError, requireCustomer, requireFormAccess } from "@/lib/authorization";
 import { FormLockedError, submitForm } from "@/lib/form-service";
+import { FormValueError } from "@/lib/form-values";
 import { BodyLimitError, apiError, readJsonBody } from "@/lib/http";
 import { OriginError, assertTrustedOrigin } from "@/lib/origin";
 
@@ -40,6 +41,9 @@ export async function POST(
     if (error instanceof AuthError) return jsonError(error);
     if (error instanceof BodyLimitError) return apiError(error.message, 413);
     if (error instanceof z.ZodError) return apiError("Ungültige Anfrage.", 400);
+    if (error instanceof FormValueError) {
+      return apiError(error.message, 400, { fieldErrors: error.fieldErrors });
+    }
     if (error && typeof error === "object" && "fieldErrors" in error) {
       return apiError("Bitte prüfen Sie Ihre Angaben.", 400, {
         fieldErrors: (error as { fieldErrors: Record<string, string> }).fieldErrors,
