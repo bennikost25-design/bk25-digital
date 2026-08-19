@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { hashPassword, verifyPassword } from "better-auth/crypto";
 import {
@@ -575,6 +575,11 @@ describe("submission idempotency scope", () => {
 });
 
 describe("outbox lease and retry", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
   it("reclaims a stale processing lease and skips a fresh one", async () => {
     const { db } = createTestDb();
     const env = localEnv();
@@ -616,63 +621,82 @@ describe("outbox lease and retry", () => {
   });
 
   it("keeps a terminal failed status after max attempts and does not send cancelled or already sent mail", async () => {
-    const { db } = createTestDb();
-    const env = localEnv({ MAIL_MODE: "brevo", BREVO_API_KEY: "x".repeat(20) });
-    const failedId = createId();
-    const sentId = createId();
-    const cancelledId = createId();
-    const now = new Date();
-    await db.insert(emailOutbox).values([
-      {
-        id: failedId,
-        type: "contact-admin",
-        toEmail: "admin@localhost",
-        templateKey: "contact-admin",
-        payloadJson: "{}",
-        status: "pending",
-        attempts: OUTBOX_MAX_ATTEMPTS - 1,
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        id: sentId,
-        type: "contact-admin",
-        toEmail: "admin@localhost",
-        templateKey: "contact-admin",
-        payloadJson: "{}",
-        status: "sent",
-        attempts: 1,
-        createdAt: now,
-        updatedAt: now,
-        sentAt: now,
-      },
-      {
-        id: cancelledId,
-        type: "invite-setup",
-        toEmail: "kunde@localhost",
-        templateKey: "invite-setup",
-        payloadJson: "{}",
-        status: "pending",
-        attempts: 0,
-        cancelledAt: now,
-        createdAt: now,
-        updatedAt: now,
-      },
-    ]);
-    await processOutboxId(db, env, failedId);
-    const failed = await db.select().from(emailOutbox).where(eq(emailOutbox.id, failedId));
-    expect(failed[0]?.status).toBe("failed");
-    expect(failed[0]?.attempts).toBe(OUTBOX_MAX_ATTEMPTS);
-    await processOutboxId(db, env, failedId);
-    const failedAgain = await db.select().from(emailOutbox).where(eq(emailOutbox.id, failedId));
-    expect(failedAgain[0]?.attempts).toBe(OUTBOX_MAX_ATTEMPTS);
-    await processOutboxId(db, env, sentId);
-    const sent = await db.select().from(emailOutbox).where(eq(emailOutbox.id, sentId));
-    expect(sent[0]?.attempts).toBe(1);
-    await processOutboxId(db, env, cancelledId);
-    const cancelled = await db.select().from(emailOutbox).where(eq(emailOutbox.id, cancelledId));
-    expect(cancelled[0]?.status).toBe("pending");
-    expect(cancelled[0]?.attempts).toBe(0);
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (!url.startsWith("https://api.brevo.com/")) {
+        throw new Error(`Unerwarteter Netzwerkaufruf: ${url}`);
+      }
+      return new Response(JSON.stringify({ message: "Key not valid" }), {
+        status: 401,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const { db } = createTestDb();
+      const env = localEnv({ MAIL_MODE: "brevo", BREVO_API_KEY: "x".repeat(20) });
+      const failedId = createId();
+      const sentId = createId();
+      const cancelledId = createId();
+      const now = new Date();
+      await db.insert(emailOutbox).values([
+        {
+          id: failedId,
+          type: "contact-admin",
+          toEmail: "admin@localhost",
+          templateKey: "contact-admin",
+          payloadJson: "{}",
+          status: "pending",
+          attempts: OUTBOX_MAX_ATTEMPTS - 1,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: sentId,
+          type: "contact-admin",
+          toEmail: "admin@localhost",
+          templateKey: "contact-admin",
+          payloadJson: "{}",
+          status: "sent",
+          attempts: 1,
+          createdAt: now,
+          updatedAt: now,
+          sentAt: now,
+        },
+        {
+          id: cancelledId,
+          type: "invite-setup",
+          toEmail: "kunde@localhost",
+          templateKey: "invite-setup",
+          payloadJson: "{}",
+          status: "pending",
+          attempts: 0,
+          cancelledAt: now,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]);
+      await processOutboxId(db, env, failedId);
+      const failed = await db.select().from(emailOutbox).where(eq(emailOutbox.id, failedId));
+      expect(failed[0]?.status).toBe("failed");
+      expect(failed[0]?.attempts).toBe(OUTBOX_MAX_ATTEMPTS);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://api.brevo.com/v3/smtp/email");
+      await processOutboxId(db, env, failedId);
+      const failedAgain = await db.select().from(emailOutbox).where(eq(emailOutbox.id, failedId));
+      expect(failedAgain[0]?.attempts).toBe(OUTBOX_MAX_ATTEMPTS);
+      await processOutboxId(db, env, sentId);
+      const sent = await db.select().from(emailOutbox).where(eq(emailOutbox.id, sentId));
+      expect(sent[0]?.attempts).toBe(1);
+      await processOutboxId(db, env, cancelledId);
+      const cancelled = await db.select().from(emailOutbox).where(eq(emailOutbox.id, cancelledId));
+      expect(cancelled[0]?.status).toBe("pending");
+      expect(cancelled[0]?.attempts).toBe(0);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("selects due pending rows and stale processing leases with a cap", async () => {

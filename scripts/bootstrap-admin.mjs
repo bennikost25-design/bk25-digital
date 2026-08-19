@@ -64,7 +64,7 @@ async function ensureAdmin(db) {
 }
 
 async function bootstrapLocal() {
-  const { env, dispose } = await getPlatformProxy();
+  const { env, dispose } = await getPlatformProxy({ remoteBindings: false });
   try {
     if (String(env.APP_ENV ?? "") === "production") {
       console.error("Lokaler Bootstrap darf nicht mit APP_ENV=production laufen.");
@@ -147,10 +147,8 @@ async function bootstrapProduction() {
   await writeFile(
     insertFile,
     [
-      "BEGIN;",
       `insert into user (id, name, email, email_verified, created_at, updated_at, role, banned) values (${sqlString(userId)}, ${sqlString(name)}, ${sqlString(email)}, 1, ${now}, ${now}, 'admin', 0);`,
       `insert into account (id, account_id, provider_id, user_id, password, created_at, updated_at) values (${sqlString(accountId)}, ${sqlString(userId)}, 'credential', ${sqlString(userId)}, ${sqlString(passwordHash)}, ${now}, ${now});`,
-      "COMMIT;",
       "",
     ].join("\n"),
     "utf8",

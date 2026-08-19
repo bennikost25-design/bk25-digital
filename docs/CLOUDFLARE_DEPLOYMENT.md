@@ -78,8 +78,8 @@ In `wrangler.jsonc` prüfen:
 
 ```bash
 npm run db:migrate:local
-npx wrangler d1 migrations apply DB --env preview
-npx wrangler d1 migrations apply DB --env production
+npx wrangler d1 migrations apply DB --env preview --remote
+npx wrangler d1 migrations apply DB --env production --remote
 ```
 
 Vor der Produktionsmigration D1 exportieren bzw. sichern.
@@ -120,7 +120,7 @@ Kein öffentlicher Bootstrap-Endpunkt. Keine fest eingebauten Passwörter. Passw
 
 ### Lokaler Bootstrap
 
-`getPlatformProxy()` ohne explizite Remote-Konfiguration ist **nur** der lokale Bootstrap und darf niemals als Produktions-Bootstrap verwendet werden.
+`getPlatformProxy({ remoteBindings: false })` ist **nur** der lokale Bootstrap und darf niemals als Produktions-Bootstrap verwendet werden. Remote-Bindings bleiben dabei ausdrücklich aus.
 
 ```bash
 npm run db:migrate:local
