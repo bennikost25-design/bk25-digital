@@ -53,6 +53,7 @@ export type CustomerFormDefinition = {
   notice?: string;
   steps: FormStep[];
   storageKey: string;
+  schemaVersion: number;
 };
 
 const unknownOption = (label = "Weiß ich noch nicht"): FieldOption => ({
@@ -74,6 +75,7 @@ export const customerForms: CustomerFormDefinition[] = [
     intro:
       "Mit diesem Fragebogen erfassen wir die wichtigsten Angaben zu Ihrem Unternehmen, Ihren Leistungen und vorhandenen Materialien. Bitte füllen Sie die Bereiche in Ruhe aus – Unsicherheiten dürfen Sie kenntlich machen.",
     storageKey: "bk25-form-unternehmen-inhalte",
+    schemaVersion: 1,
     steps: [
       {
         id: "unternehmen",
@@ -340,6 +342,7 @@ export const customerForms: CustomerFormDefinition[] = [
     intro:
       "Dieser Fragebogen hilft bei der visuellen Richtung. Wenn Sie unsicher sind, können Sie eine Empfehlung wünschen.",
     storageKey: "bk25-form-design",
+    schemaVersion: 1,
     steps: [
       {
         id: "wirkung",
@@ -456,6 +459,7 @@ export const customerForms: CustomerFormDefinition[] = [
     notice:
       "Es werden keine Preise oder Zusatzkosten in diesem Formular genannt. Umfang und Paketregeln bleiben wie im Auftrag vereinbart.",
     storageKey: "bk25-form-korrekturen",
+    schemaVersion: 1,
     steps: [
       {
         id: "meta",
@@ -522,6 +526,7 @@ export const customerForms: CustomerFormDefinition[] = [
     notice:
       "Neue Seiten, neue Funktionen oder grundlegende Änderungen sind nicht Teil dieser Abschlussfreigabe. Zusätzliche Arbeiten werden nur nach vorheriger schriftlicher Abstimmung durchgeführt.",
     storageKey: "bk25-form-abschlussfreigabe",
+    schemaVersion: 1,
     steps: [
       {
         id: "checkliste",
@@ -607,6 +612,7 @@ export const customerForms: CustomerFormDefinition[] = [
     intro:
       "Rezension und Portfolionutzung sind zwei getrennte, freiwillige Bereiche. Es besteht keine Pflicht zur Abgabe. Keine Einwilligung ist vorausgewählt.",
     storageKey: "bk25-form-rezension-portfolio",
+    schemaVersion: 1,
     steps: [
       {
         id: "rezension",

@@ -1,17 +1,13 @@
-import type { Metadata } from "next";
+import { connection } from "next/server";
 
-/**
- * Customer forms layout — no public chrome (header/footer still from root).
- * Each page also sets robots noindex.
- */
-export const metadata: Metadata = {
-  robots: { index: false, follow: false },
-};
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
-export default function KundenformulareLayout({
+export default async function CustomerFormsLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <div className="bg-light">{children}</div>;
+  await connection();
+  return children;
 }

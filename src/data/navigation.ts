@@ -17,6 +17,7 @@ export const footerNavigation: NavItem[] = [
   { label: "Kontakt", href: "/kontakt" },
   { label: "Impressum", href: "/impressum" },
   { label: "Datenschutz", href: "/datenschutz" },
+  { label: "Kundenlogin", href: "/anmelden" },
 ];
 
 export const ctaNavigation = {

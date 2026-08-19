@@ -4,20 +4,19 @@ import { usePathname } from "next/navigation";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
 
-/**
- * Public marketing chrome. Hidden on internal customer form routes.
- */
+const quietPrefixes = ["/kundenformulare", "/konto", "/admin", "/anmelden", "/passwort-vergessen", "/passwort-setzen"];
+
 export function SiteChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isCustomerForm = pathname?.startsWith("/kundenformulare") ?? false;
+  const quiet = quietPrefixes.some((prefix) => pathname?.startsWith(prefix));
 
   return (
     <>
-      {!isCustomerForm ? <Header /> : null}
+      {!quiet ? <Header /> : null}
       <main id="main-content" className="flex-1">
         {children}
       </main>
-      {!isCustomerForm ? <Footer /> : null}
+      {!quiet ? <Footer /> : null}
     </>
   );
 }

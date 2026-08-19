@@ -1,0 +1,30 @@
+# Copy to `.dev.vars` for local Wrangler/OpenNext preview.
+# Never commit `.dev.vars`. These values are for local testing only.
+
+NEXTJS_ENV=development
+APP_ENV=local
+MAIL_MODE=mock
+
+BETTER_AUTH_SECRET=local-dev-only-replace-with-32-plus-chars!!
+BETTER_AUTH_URL=http://localhost:3000
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# Official Cloudflare Turnstile dummy keys (always pass)
+TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA
+TURNSTILE_EXPECTED_HOSTNAME=localhost
+
+RATE_LIMIT_SECRET=local-rate-limit-secret-not-for-production
+ORIGIN_SECRET=local-origin-secret-not-for-production
+
+MAIL_FROM_EMAIL=noreply@localhost
+MAIL_FROM_NAME=BK25 Digital
+ADMIN_NOTIFICATION_EMAIL=admin@localhost
+
+# Leave empty in local mock mode. Production must set a real key.
+BREVO_API_KEY=
+
+# Optional: used only by `npm run bootstrap:admin`
+BOOTSTRAP_ADMIN_EMAIL=
+BOOTSTRAP_ADMIN_PASSWORD=
+BOOTSTRAP_ADMIN_NAME=Benni

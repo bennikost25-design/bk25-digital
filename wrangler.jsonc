@@ -1,0 +1,146 @@
+{
+  // Production D1 MUST be created manually with --location=eu.
+  // Never auto-provision an unrestricted production database.
+  // Replace REPLACE_WITH_EU_D1_PRODUCTION_ID before the first production deploy.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bk25-digital",
+  "main": "workers/app.ts",
+  "compatibility_date": "2025-12-30",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "preview_urls": true,
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "bk25-digital",
+    },
+  ],
+  "images": {
+    "binding": "IMAGES",
+  },
+  "vars": {
+    "APP_ENV": "local",
+    "MAIL_MODE": "mock",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "bk25-digital-local",
+      "database_id": "local-dev-not-for-production",
+      "migrations_dir": "drizzle",
+    },
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "RATE_LIMIT",
+      "id": "local-dev-kv-not-for-production",
+    },
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "EMAIL_QUEUE",
+        "queue": "bk25-email-local",
+      },
+    ],
+    "consumers": [
+      {
+        "queue": "bk25-email-local",
+        "max_retries": 5,
+        "dead_letter_queue": "bk25-email-local-dlq",
+      },
+    ],
+  },
+  "triggers": {
+    "crons": ["*/5 * * * *"],
+  },
+  "env": {
+    "preview": {
+      "name": "bk25-digital-preview",
+      "vars": {
+        "APP_ENV": "preview",
+        "MAIL_MODE": "brevo",
+      },
+      "services": [
+        {
+          "binding": "WORKER_SELF_REFERENCE",
+          "service": "bk25-digital-preview",
+        },
+      ],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "bk25-digital-preview",
+          "database_id": "REPLACE_WITH_EU_D1_PREVIEW_ID",
+          "migrations_dir": "drizzle",
+        },
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "RATE_LIMIT",
+          "id": "REPLACE_WITH_PREVIEW_KV_ID",
+        },
+      ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "EMAIL_QUEUE",
+            "queue": "bk25-email-preview",
+          },
+        ],
+        "consumers": [
+          {
+            "queue": "bk25-email-preview",
+            "max_retries": 5,
+            "dead_letter_queue": "bk25-email-preview-dlq",
+          },
+        ],
+      },
+    },
+    "production": {
+      "name": "bk25-digital",
+      "vars": {
+        "APP_ENV": "production",
+        "MAIL_MODE": "brevo",
+      },
+      "services": [
+        {
+          "binding": "WORKER_SELF_REFERENCE",
+          "service": "bk25-digital",
+        },
+      ],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "bk25-digital-production",
+          "database_id": "REPLACE_WITH_EU_D1_PRODUCTION_ID",
+          "migrations_dir": "drizzle",
+        },
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "RATE_LIMIT",
+          "id": "REPLACE_WITH_PRODUCTION_KV_ID",
+        },
+      ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "EMAIL_QUEUE",
+            "queue": "bk25-email-production",
+          },
+        ],
+        "consumers": [
+          {
+            "queue": "bk25-email-production",
+            "max_retries": 5,
+            "dead_letter_queue": "bk25-email-production-dlq",
+          },
+        ],
+      },
+    },
+  },
+}

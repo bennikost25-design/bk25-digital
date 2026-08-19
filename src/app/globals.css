@@ -28,10 +28,6 @@
   --color-violet: #9b7cff;
   --color-violet-dark: #6741d9;
   --color-muted: #6b7280;
-
-  --font-heading: var(--font-heading);
-  --font-body: var(--font-body);
-  --font-accent: var(--font-accent);
 }
 
 *,

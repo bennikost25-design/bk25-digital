@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   correctionCategories,
   correctionPriorities,
@@ -9,121 +9,101 @@ import {
   type CustomerFormDefinition,
   type FormField,
 } from "@/data/customerForms";
-import { clearDraft, loadDraft, saveDraft } from "@/lib/formDraftStorage";
-import {
-  buildExportText,
-} from "@/lib/formSubmission";
+import { emptyFormValues, validateFormValues } from "@/lib/form-validation";
 import {
   FieldShell,
   FormProgress,
   fieldControlClass,
 } from "./FormFieldPrimitives";
+import { StatusBanner, primaryButtonClass, secondaryButtonClass } from "@/components/ui/FormStatus";
 import { cn } from "@/lib/utils";
 
 type Values = Record<string, unknown>;
+type SaveState = "idle" | "saving" | "saved" | "unsaved" | "offline" | "conflict";
 
-function emptyValues(form: CustomerFormDefinition): Values {
-  const values: Values = {};
-  for (const step of form.steps) {
-    for (const field of step.fields) {
-      if (field.type === "checkbox") values[field.name] = false;
-      else if (field.type === "checkbox-group" || field.type === "checklist")
-        values[field.name] = [] as string[];
-      else values[field.name] = "";
-    }
-  }
-  if (form.id === "korrekturen") {
-    values.corrections = [createEmptyCorrection()];
-  }
-  return values;
-}
-
-function validateField(
-  field: FormField,
-  value: unknown,
-  unknown = false,
-): string | null {
-  if (unknown) return null;
-  if (!field.required) return null;
-  if (field.type === "checkbox") {
-    return value === true ? null : "Bitte bestätigen.";
-  }
-  if (field.type === "checkbox-group" || field.type === "checklist") {
-    return Array.isArray(value) && value.length > 0
-      ? null
-      : "Bitte mindestens eine Option wählen.";
-  }
-  if (typeof value === "string" && value.trim()) return null;
-  return "Dieses Feld ist erforderlich.";
-}
-
-function formatValue(value: unknown, unknown = false): string {
-  if (unknown) return "Weiß ich noch nicht / Empfehlung gewünscht";
-  if (typeof value === "boolean") return value ? "Ja" : "Nein";
-  if (Array.isArray(value)) {
-    if (value.length === 0) return "—";
-    if (typeof value[0] === "object") return JSON.stringify(value, null, 2);
-    return value
-      .map((entry) =>
-        entry === "__unknown__"
-          ? "Weiß ich noch nicht / Empfehlung gewünscht"
-          : entry === "__separate__"
-            ? "Wird separat übermittelt"
-            : String(entry),
-      )
-      .join(", ");
-  }
-  if (value === "__unknown__") return "Weiß ich noch nicht / Empfehlung gewünscht";
-  if (value === "__separate__") return "Wird separat übermittelt";
-  if (value == null || value === "") return "—";
-  return String(value);
-}
+type SubmissionView = {
+  referenceNumber: string;
+  submittedAt: string;
+  version: number;
+  schemaVersion: number;
+  values: Values;
+} | null;
 
 export function CustomerFormRenderer({
   form,
+  projectId,
+  initialValues,
+  initialStep,
+  initialRevision,
+  submission,
 }: {
   form: CustomerFormDefinition;
+  projectId: string;
+  initialValues: Values;
+  initialStep: number;
+  initialRevision: number;
+  submission?: SubmissionView;
 }) {
-  const [stepIndex, setStepIndex] = useState(0);
-  const [values, setValues] = useState<Values>(() => emptyValues(form));
+  const [stepIndex, setStepIndex] = useState(initialStep);
+  const [values, setValues] = useState<Values>(() => ({
+    ...emptyFormValues(form),
+    ...initialValues,
+  }));
+  const [revision, setRevision] = useState(initialRevision);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [hydrated, setHydrated] = useState(false);
+  const [saveState, setSaveState] = useState<SaveState>("saved");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Hydrate from localStorage after mount (client-only external store).
-    const frame = window.requestAnimationFrame(() => {
-      const draft = loadDraft(form.storageKey);
-      if (draft) {
-        setValues({ ...emptyValues(form), ...draft.values });
-        setStepIndex(
-          Math.min(Math.max(draft.stepIndex, 0), form.steps.length - 1),
-        );
-      }
-      setHydrated(true);
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [form]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    saveDraft(form.storageKey, {
-      values,
-      stepIndex,
-      updatedAt: new Date().toISOString(),
-    });
-  }, [values, stepIndex, hydrated, form.storageKey]);
+  const [submitting, setSubmitting] = useState(false);
+  const [done, setDone] = useState<SubmissionView>(submission ?? null);
+  const saveTimer = useRef<number | null>(null);
+  const idempotency = useRef(crypto.randomUUID());
 
   const step = form.steps[stepIndex];
   const isSummary = step.kind === "summary";
   const isCorrections = step.kind === "corrections";
+  const readOnly = Boolean(done) && form.id !== "korrekturen";
 
-  const corrections = useMemo(
-    () => (values.corrections as CorrectionItem[]) || [],
-    [values.corrections],
-  );
+  const persist = async (nextValues: Values, nextStep: number, nextRevision: number) => {
+    setSaveState("saving");
+    try {
+      const response = await fetch(`/api/forms/${form.slug}/draft`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          values: nextValues,
+          stepIndex: nextStep,
+          expectedRevision: nextRevision,
+        }),
+      });
+      const data = (await response.json()) as { revision?: number; error?: string };
+      if (response.status === 409) {
+        setSaveState("conflict");
+        setStatusMessage(data.error || "Speicherkonflikt. Bitte Seite neu laden.");
+        return;
+      }
+      if (!response.ok) throw new Error("save");
+      setRevision(data.revision ?? nextRevision + 1);
+      setSaveState("saved");
+    } catch {
+      setSaveState("offline");
+    }
+  };
+
+  useEffect(() => {
+    if (readOnly) return;
+    if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => {
+      void persist(values, stepIndex, revision);
+    }, 1200);
+    return () => {
+      if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [values, stepIndex]);
 
   const setValue = (name: string, value: unknown) => {
+    setSaveState("unsaved");
     setValues((prev) => ({ ...prev, [name]: value }));
     setErrors((prev) => {
       if (!prev[name]) return prev;
@@ -134,26 +114,7 @@ export function CustomerFormRenderer({
   };
 
   const validateStep = () => {
-    const nextErrors: Record<string, string> = {};
-    if (isCorrections) {
-      const items = (values.corrections as CorrectionItem[]) || [];
-      if (items.length === 0) {
-        nextErrors.corrections = "Bitte mindestens einen Korrekturpunkt hinzufügen.";
-      } else {
-        items.forEach((item, index) => {
-          if (!item.page.trim() || !item.desiredChange.trim() || !item.category) {
-            nextErrors[`correction-${index}`] =
-              "Seite, Kategorie und gewünschte Änderung sind erforderlich.";
-          }
-        });
-      }
-    } else {
-      for (const field of step.fields) {
-        const unknown = Boolean(values[`${field.name}__unknown`]);
-        const message = validateField(field, values[field.name], unknown);
-        if (message) nextErrors[field.name] = message;
-      }
-    }
+    const nextErrors = validateFormValues(form, values, "step", stepIndex);
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -161,97 +122,96 @@ export function CustomerFormRenderer({
   const goNext = () => {
     if (!validateStep()) return;
     setStepIndex((i) => Math.min(i + 1, form.steps.length - 1));
-    setStatusMessage(null);
   };
 
-  const goBack = () => {
-    setStepIndex((i) => Math.max(i - 1, 0));
+  const submit = async () => {
+    setSubmitting(true);
     setStatusMessage(null);
-  };
-
-  const clearAll = () => {
-    if (
-      !window.confirm(
-        "Entwurf wirklich löschen? Alle lokal gespeicherten Angaben dieses Formulars gehen verloren.",
-      )
-    ) {
+    const allErrors = validateFormValues(form, values, "all");
+    if (Object.keys(allErrors).length > 0) {
+      setErrors(allErrors);
+      setSubmitting(false);
+      setStatusMessage("Bitte prüfen Sie Ihre Angaben vor der Abgabe.");
       return;
     }
-    clearDraft(form.storageKey);
-    setValues(emptyValues(form));
-    setStepIndex(0);
-    setErrors({});
-    setStatusMessage("Entwurf wurde gelöscht.");
-  };
-
-  const exportLocal = async () => {
-    const text = buildExportText(form, values);
     try {
-      await navigator.clipboard.writeText(text);
-      setStatusMessage(
-        "Zusammenfassung in die Zwischenablage kopiert. Eine Übermittlung an BK25 ist damit nicht bestätigt.",
-      );
-    } catch {
-      setStatusMessage("Kopieren nicht möglich. Bitte Textdatei herunterladen.");
-    }
-  };
-
-  const downloadLocal = () => {
-    const text = buildExportText(form, values);
-    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `bk25-${form.slug}-export.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setStatusMessage(
-      "Textdatei heruntergeladen. Eine Übermittlung an BK25 ist damit nicht bestätigt.",
-    );
-  };
-
-  const summaryEntries = useMemo(() => {
-    const entries: { label: string; value: string }[] = [];
-    for (const s of form.steps) {
-      for (const field of s.fields) {
-        entries.push({
-          label: field.label,
-          value: formatValue(
-            values[field.name],
-            Boolean(values[`${field.name}__unknown`]),
-          ),
-        });
-      }
-    }
-    if (form.id === "korrekturen") {
-      entries.push({
-        label: "Korrekturpunkte",
-        value: corrections
-          .map(
-            (item, i) =>
-              `${i + 1}. ${item.page || "—"} / ${item.section || "—"} (${item.category || "—"}): ${item.desiredChange || "—"}`,
-          )
-          .join("\n"),
+      const response = await fetch(`/api/forms/${form.slug}/submit`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          values,
+          idempotencyKey: idempotency.current,
+        }),
       });
+      const data = (await response.json()) as {
+        error?: string;
+        referenceNumber?: string;
+        submittedAt?: string;
+        version?: number;
+      };
+      if (!response.ok) {
+        setStatusMessage(data.error || "Abgabe nicht möglich.");
+        setSubmitting(false);
+        return;
+      }
+      setDone({
+        referenceNumber: data.referenceNumber ?? "",
+        submittedAt: data.submittedAt ?? new Date().toISOString(),
+        version: data.version ?? 1,
+        schemaVersion: form.schemaVersion,
+        values,
+      });
+      setSaveState("saved");
+    } catch {
+      setStatusMessage("Verbindung unterbrochen. Bitte erneut versuchen.");
+    } finally {
+      setSubmitting(false);
     }
-    return entries;
-  }, [form, values, corrections]);
+  };
+
+  const saveLabel =
+    saveState === "saving"
+      ? "Wird gespeichert"
+      : saveState === "saved"
+        ? "Gespeichert"
+        : saveState === "offline"
+          ? "Verbindung unterbrochen"
+          : saveState === "conflict"
+            ? "Speicherkonflikt"
+            : "Nicht gespeichert";
+
+  if (done && (readOnly || isSummary)) {
+    return (
+      <div>
+        <StatusBanner tone="ok">
+          Technisch abgegeben am{" "}
+          {new Date(done.submittedAt).toLocaleString("de-DE")} · Referenz {done.referenceNumber}.
+          Dies ist keine vertragliche Schlussfolgerung.
+        </StatusBanner>
+        <dl className="space-y-4 border border-black/10 bg-light p-5">
+          {Object.entries(done.values).map(([key, value]) => (
+            <div key={key}>
+              <dt className="font-[family-name:var(--font-heading)] text-sm text-violet-dark">{key}</dt>
+              <dd className="mt-1 whitespace-pre-wrap text-sm">{String(Array.isArray(value) ? JSON.stringify(value) : value ?? "—")}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    );
+  }
 
   return (
     <div>
       <FormProgress steps={form.steps} currentIndex={stepIndex} />
-
-      <div className="mb-8 rounded-sm border border-violet-dark/25 bg-[#f5f3ff] px-4 py-3 text-sm text-black">
-        <strong>Vorschau</strong> – die direkte Übermittlung an BK25 Digital ist
-        noch nicht aktiviert. Ihre Angaben werden nur lokal in diesem Browser
-        zwischengespeichert.
-      </div>
+      <p className="mb-6 text-sm text-muted" aria-live="polite">
+        {saveLabel}
+      </p>
+      {statusMessage ? <StatusBanner tone={saveState === "conflict" ? "warn" : "error"}>{statusMessage}</StatusBanner> : null}
 
       <div className="mb-6">
         <h2 className="text-[clamp(1.4rem,3vw,1.85rem)]">{step.title}</h2>
-        {step.description ? (
-          <p className="mt-2 text-muted">{step.description}</p>
-        ) : null}
+        {step.description ? <p className="mt-2 text-muted">{step.description}</p> : null}
       </div>
 
       {!isSummary && !isCorrections ? (
@@ -266,9 +226,7 @@ export function CustomerFormRenderer({
               onChange={(value) => setValue(field.name, value)}
               onUnknownChange={(checked) => {
                 setValue(`${field.name}__unknown`, checked);
-                if (checked && (field.type === "text" || field.type === "textarea" || field.type === "email" || field.type === "tel")) {
-                  setValue(field.name, "");
-                }
+                if (checked) setValue(field.name, "");
               }}
             />
           ))}
@@ -277,7 +235,7 @@ export function CustomerFormRenderer({
 
       {isCorrections ? (
         <CorrectionsEditor
-          items={corrections}
+          items={(values.corrections as CorrectionItem[]) || []}
           errors={errors}
           onChange={(items) => setValue("corrections", items)}
         />
@@ -285,74 +243,30 @@ export function CustomerFormRenderer({
 
       {isSummary ? (
         <div className="space-y-6">
-          <dl className="space-y-4 border border-black/10 bg-light p-5 sm:p-6">
-            {summaryEntries.map((entry) => (
-              <div key={entry.label}>
-                <dt className="font-[family-name:var(--font-heading)] text-sm text-violet-dark">
-                  {entry.label}
-                </dt>
-                <dd className="mt-1 whitespace-pre-wrap text-sm text-black">
-                  {entry.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              className="min-h-12 rounded-sm bg-violet-dark px-5 text-sm font-[family-name:var(--font-heading)] text-white"
-              onClick={exportLocal}
-            >
-              Zusammenfassung kopieren
-            </button>
-            <button
-              type="button"
-              className="min-h-12 rounded-sm border border-black/20 px-5 text-sm font-[family-name:var(--font-heading)] text-black"
-              onClick={downloadLocal}
-            >
-              Als Textdatei herunterladen
-            </button>
-            <button
-              type="button"
-              className="min-h-12 cursor-not-allowed rounded-sm border border-black/15 px-5 text-sm font-[family-name:var(--font-heading)] text-muted"
-              disabled
-            >
-              Direkte Übermittlung noch nicht verfügbar
-            </button>
-          </div>
+          <p className="text-sm text-muted">
+            Mit der Abgabe werden Ihre Angaben unveränderbar gespeichert. Es handelt sich um eine technische Übergabe, nicht um einen Vertragsschluss.
+          </p>
+          <button type="button" className={primaryButtonClass} onClick={submit} disabled={submitting}>
+            {submitting ? "Wird abgegeben …" : "Verbindlich technisch abgeben"}
+          </button>
         </div>
       ) : null}
 
-      {statusMessage ? (
-        <p className="mt-6 text-sm text-muted" role="status">
-          {statusMessage}
-        </p>
-      ) : null}
-
       <div className="mt-10 flex flex-wrap items-center gap-3 border-t border-black/10 pt-6">
-        <button
-          type="button"
-          className="min-h-12 rounded-sm border border-black/20 px-5 text-sm font-[family-name:var(--font-heading)] disabled:opacity-40"
-          onClick={goBack}
-          disabled={stepIndex === 0}
-        >
+        <button type="button" className={secondaryButtonClass} onClick={() => setStepIndex((i) => Math.max(i - 1, 0))} disabled={stepIndex === 0}>
           Zurück
         </button>
         {!isSummary ? (
-          <button
-            type="button"
-            className="min-h-12 rounded-sm bg-violet-dark px-5 text-sm font-[family-name:var(--font-heading)] text-white"
-            onClick={goNext}
-          >
+          <button type="button" className={primaryButtonClass} onClick={goNext}>
             Weiter
           </button>
         ) : null}
         <button
           type="button"
-          className="min-h-12 rounded-sm px-3 text-sm text-muted underline-offset-2 hover:underline"
-          onClick={clearAll}
+          className={secondaryButtonClass}
+          onClick={() => persist(values, stepIndex, revision)}
         >
-          Entwurf löschen
+          Speichern
         </button>
       </div>
     </div>
