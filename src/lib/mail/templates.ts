@@ -18,11 +18,25 @@ export type RenderedEmail = {
 
 const wrapHtml = (title: string, body: string) => `<!doctype html>
 <html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      @media only screen and (max-width: 620px) {
+        .email-outer {
+          padding: 16px !important;
+        }
+        .email-card {
+          padding: 24px !important;
+        }
+      }
+    </style>
+  </head>
   <body style="margin:0;background:#f3f4f6;color:#0d0d0d;font-family:Arial,sans-serif;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f4f6;padding:32px 16px;">
+    <table role="presentation" class="email-outer" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f4f6;padding:24px 16px;">
       <tr>
         <td align="center">
-          <table role="presentation" width="560" cellspacing="0" cellpadding="0" style="background:#ffffff;padding:32px;border:1px solid #e5e7eb;">
+          <table role="presentation" class="email-card" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:680px;background:#ffffff;padding:40px 48px;border:1px solid #e5e7eb;">
             <tr>
               <td>
                 <p style="margin:0 0 8px;letter-spacing:0.16em;font-size:12px;color:#6741d9;text-transform:uppercase;">BK25 Digital</p>
