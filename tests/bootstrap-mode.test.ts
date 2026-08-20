@@ -2,19 +2,21 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   buildRemoteWranglerArgs,
+  buildRemoteWranglerLookupArgs,
   resolveBootstrapMode,
 } from "../scripts/bootstrap-admin-mode.mjs";
+import { buildWranglerSpawnDefinition } from "../scripts/bootstrap-admin-wrangler.mjs";
 
 const FAKE_EMAIL = "admin@example.test";
 const FAKE_PASSWORD = "fake-password-not-real";
 const FAKE_HASH = "$fake$hash$value.not.a.real.hash";
-const FAKE_SQL_PATH = "/tmp/bk25-bootstrap-fake/lookup.sql";
+const FAKE_SQL_PATH = "/tmp/bk25-bootstrap-fake/insert.sql";
+const FAKE_LOOKUP_SQL = `select id, role from user where email = '${FAKE_EMAIL}';`;
 
 function expectNoSecrets(value: unknown) {
   const text = typeof value === "string" ? value : JSON.stringify(value);
   expect(text).not.toContain(FAKE_PASSWORD);
   expect(text).not.toContain(FAKE_HASH);
-  expect(text).not.toContain(FAKE_EMAIL);
 }
 
 describe("bootstrap mode selection", () => {
@@ -135,8 +137,29 @@ describe("bootstrap mode selection", () => {
 });
 
 describe("remote wrangler arg builder", () => {
-  it("builds preview args with --env preview and never production", () => {
-    const args = buildRemoteWranglerArgs("preview", FAKE_SQL_PATH, { json: true });
+  it("builds lookup args with --command and never --file", () => {
+    const args = buildRemoteWranglerLookupArgs("preview", FAKE_LOOKUP_SQL);
+    expect(args).toEqual([
+      "d1",
+      "execute",
+      "DB",
+      "--env",
+      "preview",
+      "--remote",
+      "--command",
+      FAKE_LOOKUP_SQL,
+      "--json",
+    ]);
+    expect(args).toContain("--command");
+    expect(args).not.toContain("--file");
+    expect(args[args.indexOf("--env") + 1]).toBe("preview");
+    expect(args).not.toContain("production");
+    expect(args[args.indexOf("--command") + 1]).toBe(FAKE_LOOKUP_SQL);
+    expectNoSecrets(args);
+  });
+
+  it("builds insert file args with --file and never puts secrets in args", () => {
+    const args = buildRemoteWranglerArgs("preview", FAKE_SQL_PATH);
     expect(args).toEqual([
       "d1",
       "execute",
@@ -146,15 +169,14 @@ describe("remote wrangler arg builder", () => {
       "--remote",
       "--file",
       FAKE_SQL_PATH,
-      "--json",
     ]);
-    expect(args).toContain("--env");
-    expect(args[args.indexOf("--env") + 1]).toBe("preview");
+    expect(args).toContain("--file");
+    expect(args).not.toContain("--command");
     expect(args).not.toContain("production");
     expectNoSecrets(args);
   });
 
-  it("builds production args with --env production", () => {
+  it("builds production insert args with --env production", () => {
     const args = buildRemoteWranglerArgs("production", FAKE_SQL_PATH);
     expect(args).toEqual([
       "d1",
@@ -171,10 +193,27 @@ describe("remote wrangler arg builder", () => {
     expectNoSecrets(args);
   });
 
+  it("keeps lookup spawn shell-false with SQL as a separate argument", () => {
+    const wranglerArgs = buildRemoteWranglerLookupArgs("preview", FAKE_LOOKUP_SQL);
+    const definition = buildWranglerSpawnDefinition(wranglerArgs);
+    expect(definition.shell).toBe(false);
+    expect(definition.execPath).toBe(process.execPath);
+    expect(definition.args).toContain("--command");
+    expect(definition.args).not.toContain("--file");
+    expect(definition.args).not.toContain("npx");
+    const commandIndex = definition.args.indexOf("--command");
+    expect(definition.args[commandIndex + 1]).toBe(FAKE_LOOKUP_SQL);
+    expectNoSecrets(definition);
+  });
+
   it("rejects free-form environments", () => {
     expect(() =>
       // @ts-expect-error intentional invalid env for safety coverage
       buildRemoteWranglerArgs("staging", FAKE_SQL_PATH),
+    ).toThrow(/Ungültiges Bootstrap-Ziel/);
+    expect(() =>
+      // @ts-expect-error intentional invalid env for safety coverage
+      buildRemoteWranglerLookupArgs("staging", FAKE_LOOKUP_SQL),
     ).toThrow(/Ungültiges Bootstrap-Ziel/);
   });
 });

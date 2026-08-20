@@ -55,14 +55,14 @@ describe("bootstrap temporary SQL cleanup", () => {
     await expectPathMissing(capturedDir!);
   });
 
-  it("removes lookup.sql and its temp directory when the runner throws", async () => {
+  it("removes a temporary SQL file and directory when the runner throws", async () => {
     let capturedFile: string | null = null;
     let capturedDir: string | null = null;
 
     await expect(
       withTemporarySqlFile(
-        "lookup.sql",
-        `select id, role from user where email = '${FAKE_EMAIL}';\n`,
+        "scratch.sql",
+        `select 1;\n`,
         async (filePath) => {
           capturedFile = filePath;
           capturedDir = dirname(filePath);

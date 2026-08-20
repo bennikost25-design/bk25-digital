@@ -3,6 +3,7 @@ import { getPlatformProxy } from "wrangler";
 import { hashPassword } from "better-auth/crypto";
 import {
   buildRemoteWranglerArgs,
+  buildRemoteWranglerLookupArgs,
   resolveBootstrapMode,
 } from "./bootstrap-admin-mode.mjs";
 import { withTemporarySqlFile } from "./bootstrap-admin-temp.mjs";
@@ -13,6 +14,10 @@ import {
 
 function sqlString(value) {
   return `'${value.replaceAll("'", "''")}'`;
+}
+
+function buildLookupSql(email) {
+  return `select id, role from user where email = ${sqlString(email)};`;
 }
 
 function runWrangler(wranglerArgs) {
@@ -94,13 +99,8 @@ async function bootstrapLocal(email, password, name) {
 async function bootstrapRemote(env, label, email, password, name) {
   console.info(`Starte Admin-Bootstrap für ${label}.`);
 
-  const lookupOut = await withTemporarySqlFile(
-    "lookup.sql",
-    `select id, role from user where email = ${sqlString(email)};\n`,
-    (lookupFile) =>
-      runWrangler(buildRemoteWranglerArgs(env, lookupFile, { json: true })),
-  );
-
+  const lookupSql = buildLookupSql(email);
+  const lookupOut = runWrangler(buildRemoteWranglerLookupArgs(env, lookupSql));
   const { role: existingRole } = parseWranglerD1LookupOutput(lookupOut);
 
   if (existingRole === "admin") {

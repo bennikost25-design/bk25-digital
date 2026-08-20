@@ -130,6 +130,9 @@ export function resolveBootstrapMode(argv) {
 }
 
 /**
+ * Remote INSERT / mutation args: SQL stays in a temp file so secrets never
+ * appear as process arguments.
+ *
  * @param {"preview" | "production"} env
  * @param {string} filePath
  * @param {{ json?: boolean }} [options]
@@ -148,4 +151,33 @@ export function buildRemoteWranglerArgs(env, filePath, options = {}) {
     args.push("--json");
   }
   return args;
+}
+
+/**
+ * Remote SELECT lookup args: use --command so Wrangler returns query rows.
+ * `--file` only reports execution stats and must not be used for lookups.
+ *
+ * @param {"preview" | "production"} env
+ * @param {string} sqlCommand
+ * @returns {string[]}
+ */
+export function buildRemoteWranglerLookupArgs(env, sqlCommand) {
+  if (env !== "preview" && env !== "production") {
+    throw new Error("Ungültiges Bootstrap-Ziel.");
+  }
+  if (typeof sqlCommand !== "string" || sqlCommand.trim().length === 0) {
+    throw new Error("SQL-Befehl für Remote-Lookup fehlt.");
+  }
+
+  return [
+    "d1",
+    "execute",
+    "DB",
+    "--env",
+    env,
+    "--remote",
+    "--command",
+    sqlCommand,
+    "--json",
+  ];
 }

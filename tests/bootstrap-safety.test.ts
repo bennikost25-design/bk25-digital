@@ -35,7 +35,12 @@ describe("bootstrap and deployment safety", () => {
     expect(bootstrap).not.toMatch(/\bCOMMIT\s*;/i);
     expect(bootstrap).toContain("withTemporarySqlFile");
     expect(bootstrap).toContain("buildRemoteWranglerArgs");
+    expect(bootstrap).toContain("buildRemoteWranglerLookupArgs");
     expect(bootstrap).toContain("resolveBootstrapMode");
+    expect(bootstrap).toContain("insert.sql");
+    expect(bootstrap).not.toContain("lookup.sql");
+    expect(bootstrapMode).toContain("--command");
+    expect(bootstrapMode).toContain("buildRemoteWranglerLookupArgs");
     expect(bootstrapTemp).toContain("mkdtemp(");
     expect(bootstrapTemp).toContain("rm(dir, { recursive: true, force: true })");
     expect(bootstrapMode).toContain("--production");

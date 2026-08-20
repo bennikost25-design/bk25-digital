@@ -1,5 +1,4 @@
 import { existsSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   buildWranglerSpawnDefinition,
@@ -143,8 +142,8 @@ describe("buildWranglerSpawnDefinition", () => {
       "--env",
       "preview",
       "--remote",
-      "--file",
-      join(projectRoot, "tmp-fake", "lookup.sql"),
+      "--command",
+      "select id, role from user where email = 'admin@example.test';",
       "--json",
     ];
     const definition = buildWranglerSpawnDefinition(wranglerArgs, {
@@ -158,10 +157,33 @@ describe("buildWranglerSpawnDefinition", () => {
     expect(definition.stdio).toEqual(["ignore", "pipe", "pipe"]);
     expect(definition.args[0]).toBe(cliPath);
     expect(definition.args.slice(1)).toEqual(wranglerArgs);
+    expect(definition.args).toContain("--command");
+    expect(definition.args).not.toContain("--file");
     expect(definition.args.join(" ")).not.toContain("npx");
     expect(definition.args).not.toContain("npx");
     expect(definition.args).not.toContain("npx.cmd");
     expect(JSON.stringify(definition)).not.toContain(FAKE_PASSWORD);
     expect(JSON.stringify(definition)).not.toContain(FAKE_HASH);
+  });
+
+  it("parses progress text before query-row JSON with a role", () => {
+    const progressAndRows = `🌀 Executing on remote database DB (fake-id):
+🌀 To execute on your local database, remove the --remote flag from your wrangler command.
+[
+  {
+    "results": [
+      {
+        "id": "user-fake-id",
+        "role": "admin"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "duration": 1
+    }
+  }
+]`;
+    const parsed = parseWranglerD1LookupOutput(progressAndRows);
+    expect(parsed.role).toBe("admin");
   });
 });
