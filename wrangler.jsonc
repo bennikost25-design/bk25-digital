@@ -70,7 +70,7 @@
         {
           "binding": "DB",
           "database_name": "bk25-digital-preview",
-          "database_id": "REPLACE_WITH_EU_D1_PREVIEW_ID",
+          "database_id": "4e27e730-8862-4e00-9ad9-497fb7f6104e",
           "migrations_dir": "drizzle",
         },
       ],
@@ -106,7 +106,7 @@
         {
           "binding": "DB",
           "database_name": "bk25-digital-production",
-          "database_id": "REPLACE_WITH_EU_D1_PRODUCTION_ID",
+          "database_id": "f54e40e4-973f-430f-a06b-5c4ada9ebab9",
           "migrations_dir": "drizzle",
         },
       ],
