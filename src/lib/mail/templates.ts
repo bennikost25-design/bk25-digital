@@ -50,10 +50,10 @@ export function renderEmail(
     case "contact-confirm":
       return {
         subject: "Ihre Anfrage bei BK25 Digital",
-        text: `Guten Tag ${payload.name || ""},\n\nIhre Kontaktanfrage ist bei BK25 Digital eingegangen. Ich melde mich in Kürze.\n\nViele Grüße\nBenni`,
+        text: `Guten Tag ${payload.name || ""},\n\nIhre Kontaktanfrage ist bei BK25 Digital eingegangen. Ich melde mich in Kürze.\n\nViele Grüße\nBenjamin Kost\nBK25 Digital`,
         html: wrapHtml(
           "Anfrage eingegangen",
-          `<p>${name},</p><p>Ihre Kontaktanfrage ist eingegangen. Ich melde mich in Kürze.</p><p>Viele Grüße<br>Benni</p>`,
+          `<p>${name},</p><p>Ihre Kontaktanfrage ist eingegangen. Ich melde mich in Kürze.</p><p>Viele Grüße<br>Benjamin Kost<br>BK25 Digital</p>`,
         ),
       };
     case "contact-admin":
