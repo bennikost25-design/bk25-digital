@@ -24,7 +24,8 @@ Rechtliche und geschäftliche Angaben dürfen nicht erfunden werden. `isProducti
 - [ ] `MAIL_MODE=brevo` in Produktion (kein stiller Mock-Fallback, unbekannte Werte brechen den Start ab)
 - [ ] `BETTER_AUTH_URL` und `NEXT_PUBLIC_SITE_URL` sind HTTPS und derselbe Ursprung
 - [ ] Lokaler Admin-Bootstrap über `npm run bootstrap:admin` (`getPlatformProxy` ist nicht der Produktionsweg)
-- [ ] Produktions-Admin nur mit `--production --remote --confirm-production`
+- [ ] Preview-Admin nur mit `--preview --remote --confirm-preview`
+- [ ] Produktions-Admin weiterhin nur mit `--production --remote --confirm-production`
 
 ## GitHub und Domain
 

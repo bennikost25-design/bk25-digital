@@ -4,11 +4,17 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { getPlatformProxy } from "wrangler";
 import { hashPassword } from "better-auth/crypto";
+import {
+  buildRemoteWranglerArgs,
+  resolveBootstrapMode,
+} from "./bootstrap-admin-mode.mjs";
 
-const args = new Set(process.argv.slice(2));
-const wantsProduction = args.has("--production");
-const wantsRemote = args.has("--remote");
-const confirmedProduction = args.has("--confirm-production");
+const modeResult = resolveBootstrapMode(process.argv.slice(2));
+if (!modeResult.ok) {
+  console.error(modeResult.error);
+  process.exit(1);
+}
+const bootstrapMode = modeResult.mode;
 
 const email = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase();
 const password = process.env.BOOTSTRAP_ADMIN_PASSWORD;
@@ -64,6 +70,7 @@ async function ensureAdmin(db) {
 }
 
 async function bootstrapLocal() {
+  console.info("Starte Admin-Bootstrap für lokale D1.");
   const { env, dispose } = await getPlatformProxy({ remoteBindings: false });
   try {
     if (String(env.APP_ENV ?? "") === "production") {
@@ -94,27 +101,23 @@ function runWrangler(wranglerArgs) {
   return result.stdout ?? "";
 }
 
-async function bootstrapProduction() {
+/**
+ * @param {"preview" | "production"} env
+ * @param {string} label
+ */
+async function bootstrapRemote(env, label) {
+  console.info(`Starte Admin-Bootstrap für ${label}.`);
+
   const lookupFileDir = await mkdtemp(join(tmpdir(), "bk25-bootstrap-"));
-  const lookupFile = join(lookupFileDir, "lookup.sql");
-  await writeFile(
-    lookupFile,
-    `select id, role from user where email = ${sqlString(email)};\n`,
-    "utf8",
-  );
   let lookupOut = "";
   try {
-    lookupOut = runWrangler([
-      "d1",
-      "execute",
-      "DB",
-      "--env",
-      "production",
-      "--remote",
-      "--file",
+    const lookupFile = join(lookupFileDir, "lookup.sql");
+    await writeFile(
       lookupFile,
-      "--json",
-    ]);
+      `select id, role from user where email = ${sqlString(email)};\n`,
+      "utf8",
+    );
+    lookupOut = runWrangler(buildRemoteWranglerArgs(env, lookupFile, { json: true }));
   } finally {
     await rm(lookupFileDir, { recursive: true, force: true });
   }
@@ -125,7 +128,7 @@ async function bootstrapProduction() {
     const rows = parsed?.[0]?.results ?? parsed?.results ?? [];
     if (Array.isArray(rows) && rows[0]?.role) existingRole = String(rows[0].role);
   } catch {
-    console.error("Die Produktionsabfrage konnte nicht gelesen werden.");
+    console.error("Die Remote-D1-Abfrage konnte nicht gelesen werden.");
     process.exit(1);
   }
 
@@ -143,41 +146,31 @@ async function bootstrapProduction() {
   const accountId = crypto.randomUUID();
   const passwordHash = await hashPassword(password);
   const insertDir = await mkdtemp(join(tmpdir(), "bk25-bootstrap-"));
-  const insertFile = join(insertDir, "insert.sql");
-  await writeFile(
-    insertFile,
-    [
-      `insert into user (id, name, email, email_verified, created_at, updated_at, role, banned) values (${sqlString(userId)}, ${sqlString(name)}, ${sqlString(email)}, 1, ${now}, ${now}, 'admin', 0);`,
-      `insert into account (id, account_id, provider_id, user_id, password, created_at, updated_at) values (${sqlString(accountId)}, ${sqlString(userId)}, 'credential', ${sqlString(userId)}, ${sqlString(passwordHash)}, ${now}, ${now});`,
-      "",
-    ].join("\n"),
-    "utf8",
-  );
   try {
-    runWrangler([
-      "d1",
-      "execute",
-      "DB",
-      "--env",
-      "production",
-      "--remote",
-      "--file",
+    const insertFile = join(insertDir, "insert.sql");
+    await writeFile(
       insertFile,
-    ]);
+      [
+        `insert into user (id, name, email, email_verified, created_at, updated_at, role, banned) values (${sqlString(userId)}, ${sqlString(name)}, ${sqlString(email)}, 1, ${now}, ${now}, 'admin', 0);`,
+        `insert into account (id, account_id, provider_id, user_id, password, created_at, updated_at) values (${sqlString(accountId)}, ${sqlString(userId)}, 'credential', ${sqlString(userId)}, ${sqlString(passwordHash)}, ${now}, ${now});`,
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    runWrangler(buildRemoteWranglerArgs(env, insertFile));
   } finally {
     await rm(insertDir, { recursive: true, force: true });
   }
-  console.info("Erster Produktions-Admin wurde angelegt.");
+
+  if (env === "preview") {
+    console.info("Erster Preview-Admin wurde angelegt.");
+  } else {
+    console.info("Erster Produktions-Admin wurde angelegt.");
+  }
 }
 
-if (wantsProduction || wantsRemote || confirmedProduction) {
-  if (!wantsProduction || !wantsRemote || !confirmedProduction) {
-    console.error(
-      "Produktionsbootstrap verlangt ausdrücklich --production --remote --confirm-production.",
-    );
-    process.exit(1);
-  }
-  await bootstrapProduction();
-} else {
+if (bootstrapMode.kind === "local") {
   await bootstrapLocal();
+} else {
+  await bootstrapRemote(bootstrapMode.env, bootstrapMode.label);
 }

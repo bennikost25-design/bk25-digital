@@ -120,7 +120,7 @@ Kein öffentlicher Bootstrap-Endpunkt. Keine fest eingebauten Passwörter. Passw
 
 ### Lokaler Bootstrap
 
-`getPlatformProxy({ remoteBindings: false })` ist **nur** der lokale Bootstrap und darf niemals als Produktions-Bootstrap verwendet werden. Remote-Bindings bleiben dabei ausdrücklich aus.
+`getPlatformProxy({ remoteBindings: false })` ist **nur** der lokale Bootstrap und darf niemals als Preview- oder Produktions-Bootstrap verwendet werden. Remote-Bindings bleiben dabei ausdrücklich aus.
 
 ```bash
 npm run db:migrate:local
@@ -128,6 +128,24 @@ BOOTSTRAP_ADMIN_EMAIL=... BOOTSTRAP_ADMIN_PASSWORD=... npm run bootstrap:admin
 ```
 
 Idempotent: ein vorhandener Admin wird nicht überschrieben. Ein vorhandener Nicht-Admin mit derselben E-Mail bricht sicher ab.
+
+Setzen Sie `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` und optional `BOOTSTRAP_ADMIN_NAME` nur vorübergehend im aktuellen Terminal und entfernen Sie die Werte anschließend wieder.
+
+### Preview-Bootstrap (remote)
+
+Zwingend `--preview --remote --confirm-preview`. Remote-Zugriff nur über Wrangler D1 mit Binding `DB`, `--env preview` und `--remote`. Kein `--env production`, keine Produktions-D1 und keine stillschweigende lokale Ausführung.
+
+```bash
+BOOTSTRAP_ADMIN_EMAIL=... BOOTSTRAP_ADMIN_PASSWORD=... node scripts/bootstrap-admin.mjs --preview --remote --confirm-preview
+```
+
+Gleichwertig über npm:
+
+```bash
+BOOTSTRAP_ADMIN_EMAIL=... BOOTSTRAP_ADMIN_PASSWORD=... npm run bootstrap:admin -- --preview --remote --confirm-preview
+```
+
+Die Bestätigungsflags bewusst sichtbar mitgeben; sie sind nicht in `package.json` fest eingebaut. Umgebungsvariablen nur vorübergehend im aktuellen Terminal setzen und danach entfernen. Keine echten Zugangsdaten in Dokumentation, Issues oder Chatverlauf speichern.
 
 ### Produktionsbootstrap
 

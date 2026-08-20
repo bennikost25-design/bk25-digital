@@ -25,6 +25,7 @@ function walkFiles(dir: string, acc: string[] = []): string[] {
 
 describe("bootstrap and deployment safety", () => {
   const bootstrap = readFileSync("scripts/bootstrap-admin.mjs", "utf8");
+  const bootstrapMode = readFileSync("scripts/bootstrap-admin-mode.mjs", "utf8");
   const docs = readFileSync("docs/CLOUDFLARE_DEPLOYMENT.md", "utf8");
   const wrangler = readFileSync("wrangler.jsonc", "utf8");
 
@@ -33,15 +34,31 @@ describe("bootstrap and deployment safety", () => {
     expect(bootstrap).not.toMatch(/\bCOMMIT\s*;/i);
     expect(bootstrap).toContain("mkdtemp(");
     expect(bootstrap).toContain("rm(insertDir, { recursive: true, force: true })");
-    expect(bootstrap).toContain("--production");
-    expect(bootstrap).toContain("--remote");
-    expect(bootstrap).toContain("--confirm-production");
+    expect(bootstrap).toContain("buildRemoteWranglerArgs");
+    expect(bootstrap).toContain("resolveBootstrapMode");
+    expect(bootstrapMode).toContain("--production");
+    expect(bootstrapMode).toContain("--remote");
+    expect(bootstrapMode).toContain("--confirm-production");
+    expect(bootstrapMode).toContain("--preview");
+    expect(bootstrapMode).toContain("--confirm-preview");
+    expect(bootstrapMode).toContain('env: "preview"');
+    expect(bootstrapMode).toContain('env: "production"');
   });
 
   it("forces local getPlatformProxy to disable remote bindings", () => {
     expect(bootstrap).toContain("getPlatformProxy({ remoteBindings: false })");
     const calls = bootstrap.match(/getPlatformProxy\s*\(/g) ?? [];
     expect(calls).toHaveLength(1);
+  });
+
+  it("keeps confirm flags explicit and out of package scripts", () => {
+    const pkg = readFileSync("package.json", "utf8");
+    expect(pkg).toContain('"bootstrap:admin": "node scripts/bootstrap-admin.mjs"');
+    expect(pkg).not.toContain("--confirm-preview");
+    expect(pkg).not.toContain("--confirm-production");
+    expect(docs).toContain("--preview --remote --confirm-preview");
+    expect(docs).toContain("--env preview");
+    expect(docs).toContain("--production --remote --confirm-production");
   });
 
   it("does not enable remote bindings anywhere in local config or scripts", () => {
