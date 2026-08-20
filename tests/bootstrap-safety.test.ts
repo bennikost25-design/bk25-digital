@@ -26,16 +26,18 @@ function walkFiles(dir: string, acc: string[] = []): string[] {
 describe("bootstrap and deployment safety", () => {
   const bootstrap = readFileSync("scripts/bootstrap-admin.mjs", "utf8");
   const bootstrapMode = readFileSync("scripts/bootstrap-admin-mode.mjs", "utf8");
+  const bootstrapTemp = readFileSync("scripts/bootstrap-admin-temp.mjs", "utf8");
   const docs = readFileSync("docs/CLOUDFLARE_DEPLOYMENT.md", "utf8");
   const wrangler = readFileSync("wrangler.jsonc", "utf8");
 
   it("does not wrap production D1 SQL in BEGIN/COMMIT", () => {
     expect(bootstrap).not.toMatch(/\bBEGIN\s*;/i);
     expect(bootstrap).not.toMatch(/\bCOMMIT\s*;/i);
-    expect(bootstrap).toContain("mkdtemp(");
-    expect(bootstrap).toContain("rm(insertDir, { recursive: true, force: true })");
+    expect(bootstrap).toContain("withTemporarySqlFile");
     expect(bootstrap).toContain("buildRemoteWranglerArgs");
     expect(bootstrap).toContain("resolveBootstrapMode");
+    expect(bootstrapTemp).toContain("mkdtemp(");
+    expect(bootstrapTemp).toContain("rm(dir, { recursive: true, force: true })");
     expect(bootstrapMode).toContain("--production");
     expect(bootstrapMode).toContain("--remote");
     expect(bootstrapMode).toContain("--confirm-production");
@@ -43,6 +45,14 @@ describe("bootstrap and deployment safety", () => {
     expect(bootstrapMode).toContain("--confirm-preview");
     expect(bootstrapMode).toContain('env: "preview"');
     expect(bootstrapMode).toContain('env: "production"');
+  });
+
+  it("avoids process.exit so finally cleanup can finish", () => {
+    expect(bootstrap).not.toMatch(/process\.exit\s*\(/);
+    expect(bootstrapTemp).not.toMatch(/process\.exit\s*\(/);
+    expect(bootstrapMode).not.toMatch(/process\.exit\s*\(/);
+    expect(bootstrap).toContain("process.exitCode = 1");
+    expect(bootstrap).toContain("throw new Error(\"Der Remote-D1-Befehl ist fehlgeschlagen.\")");
   });
 
   it("forces local getPlatformProxy to disable remote bindings", () => {
