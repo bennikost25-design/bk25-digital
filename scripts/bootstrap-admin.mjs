@@ -61,8 +61,8 @@ async function ensureAdmin(db, email, password, name) {
       .bind(userId, name, email, now, now),
     db
       .prepare(
-        `insert into account (id, account_id, provider_id, user_id, password, created_at, updated_at)
-         values (?, ?, 'credential', ?, ?, ?, ?)`,
+        `insert into account (id, account_id, provider_id, issuer, user_id, password, created_at, updated_at)
+         values (?, ?, 'credential', 'local:credential', ?, ?, ?, ?)`,
       )
       .bind(crypto.randomUUID(), userId, userId, passwordHash, now, now),
   ]);
@@ -122,7 +122,7 @@ async function bootstrapRemote(env, label, email, password, name) {
     "insert.sql",
     [
       `insert into user (id, name, email, email_verified, created_at, updated_at, role, banned) values (${sqlString(userId)}, ${sqlString(name)}, ${sqlString(email)}, 1, ${now}, ${now}, 'admin', 0);`,
-      `insert into account (id, account_id, provider_id, user_id, password, created_at, updated_at) values (${sqlString(accountId)}, ${sqlString(userId)}, 'credential', ${sqlString(userId)}, ${sqlString(passwordHash)}, ${now}, ${now});`,
+      `insert into account (id, account_id, provider_id, issuer, user_id, password, created_at, updated_at) values (${sqlString(accountId)}, ${sqlString(userId)}, 'credential', 'local:credential', ${sqlString(userId)}, ${sqlString(passwordHash)}, ${now}, ${now});`,
       "",
     ].join("\n"),
     (insertFile) => runWrangler(buildRemoteWranglerArgs(env, insertFile)),

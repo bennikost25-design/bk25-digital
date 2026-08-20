@@ -69,6 +69,7 @@ describe("auth and roles", () => {
       id: createId(),
       accountId: userId,
       providerId: "credential",
+      issuer: "local:credential",
       userId,
       password: await hashPassword(password),
       createdAt: now,

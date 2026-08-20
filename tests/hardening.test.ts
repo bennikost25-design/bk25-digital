@@ -307,6 +307,7 @@ describe("invitations", () => {
       id: createId(),
       accountId: userId,
       providerId: "credential",
+      issuer: "local:credential",
       userId,
       password: originalHash,
       createdAt: now,

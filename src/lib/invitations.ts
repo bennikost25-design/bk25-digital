@@ -98,6 +98,7 @@ export async function createCustomerWithInvite(
         id: createId(),
         accountId: userId,
         providerId: "credential",
+        issuer: "local:credential",
         userId,
         password: passwordHash,
         createdAt: now,
