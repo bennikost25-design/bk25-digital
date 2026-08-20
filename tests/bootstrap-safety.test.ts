@@ -55,6 +55,22 @@ describe("bootstrap and deployment safety", () => {
     expect(bootstrap).toContain("throw new Error(\"Der Remote-D1-Befehl ist fehlgeschlagen.\")");
   });
 
+  it("starts local wrangler without npx or shell", () => {
+    const bootstrapWrangler = readFileSync(
+      "scripts/bootstrap-admin-wrangler.mjs",
+      "utf8",
+    );
+    expect(bootstrap).toContain("buildWranglerSpawnDefinition");
+    expect(bootstrap).toContain("parseWranglerD1LookupOutput");
+    expect(bootstrap).not.toMatch(/\bnpx\b/);
+    expect(bootstrap).not.toMatch(/shell:\s*true/);
+    expect(bootstrapWrangler).toContain("process.execPath");
+    expect(bootstrapWrangler).toContain("wrangler.js");
+    expect(bootstrapWrangler).toContain("shell: false");
+    expect(bootstrapWrangler).not.toMatch(/\bnpx\b/);
+    expect(bootstrapWrangler).not.toMatch(/shell:\s*true/);
+  });
+
   it("forces local getPlatformProxy to disable remote bindings", () => {
     expect(bootstrap).toContain("getPlatformProxy({ remoteBindings: false })");
     const calls = bootstrap.match(/getPlatformProxy\s*\(/g) ?? [];

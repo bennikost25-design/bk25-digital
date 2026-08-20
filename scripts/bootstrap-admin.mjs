@@ -6,16 +6,22 @@ import {
   resolveBootstrapMode,
 } from "./bootstrap-admin-mode.mjs";
 import { withTemporarySqlFile } from "./bootstrap-admin-temp.mjs";
+import {
+  buildWranglerSpawnDefinition,
+  parseWranglerD1LookupOutput,
+} from "./bootstrap-admin-wrangler.mjs";
 
 function sqlString(value) {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
 function runWrangler(wranglerArgs) {
-  const result = spawnSync("npx", ["wrangler", ...wranglerArgs], {
+  const definition = buildWranglerSpawnDefinition(wranglerArgs);
+  const result = spawnSync(definition.execPath, definition.args, {
+    cwd: definition.cwd,
     encoding: "utf8",
-    shell: true,
-    stdio: ["ignore", "pipe", "pipe"],
+    shell: definition.shell,
+    stdio: definition.stdio,
   });
   if (result.status !== 0) {
     throw new Error("Der Remote-D1-Befehl ist fehlgeschlagen.");
@@ -95,14 +101,7 @@ async function bootstrapRemote(env, label, email, password, name) {
       runWrangler(buildRemoteWranglerArgs(env, lookupFile, { json: true })),
   );
 
-  let existingRole = null;
-  try {
-    const parsed = JSON.parse(lookupOut);
-    const rows = parsed?.[0]?.results ?? parsed?.results ?? [];
-    if (Array.isArray(rows) && rows[0]?.role) existingRole = String(rows[0].role);
-  } catch {
-    throw new Error("Die Remote-D1-Abfrage konnte nicht gelesen werden.");
-  }
+  const { role: existingRole } = parseWranglerD1LookupOutput(lookupOut);
 
   if (existingRole === "admin") {
     console.info("Admin existiert bereits. Keine Änderung.");
