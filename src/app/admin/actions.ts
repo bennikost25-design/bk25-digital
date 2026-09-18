@@ -3,11 +3,19 @@
 import { revalidatePath } from "next/cache";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
-import { contactRequest, emailOutbox, projectFormAccess, user } from "@/db/schema";
-import { requireAdmin } from "@/lib/authorization";
+import { emailOutbox, projectFormAccess, user } from "@/db/schema";
+import { AuthError, requireAdmin } from "@/lib/authorization";
+import { setContactStatusForAdmin } from "@/lib/contact-admin";
+import { isContactStatus, type ContactStatus } from "@/lib/contact-status";
 import { createId, nowMs } from "@/lib/ids";
 import { createCustomerWithInvite, InvitationError, issueInvitation, revokeInvitation } from "@/lib/invitations";
 import { ALL_FORM_KEYS } from "@/lib/form-validation";
+
+export type ContactStatusActionState = {
+  status: ContactStatus | null;
+  saved: boolean;
+  error: string | null;
+};
 
 const nameSchema = z.string().trim().min(1, "Bitte einen Namen angeben.").max(120);
 const emailSchema = z
@@ -88,17 +96,28 @@ export async function setBanAction(formData: FormData) {
   revalidatePath("/admin/kunden");
 }
 
-export async function setContactStatusAction(formData: FormData) {
-  const ctx = await requireAdmin();
-  const status = z.enum(["new", "in_progress", "done"]).parse(formDataString(formData, "status"));
-  await ctx.db
-    .update(contactRequest)
-    .set({
-      status,
-      updatedAt: new Date(nowMs()),
-    })
-    .where(eq(contactRequest.id, idSchema.parse(formDataString(formData, "id"))));
-  revalidatePath("/admin/kontakt");
+export async function setContactStatusAction(
+  prevState: ContactStatusActionState,
+  formData: FormData,
+): Promise<ContactStatusActionState> {
+  const previousStatus = isContactStatus(prevState.status) ? prevState.status : null;
+  try {
+    const ctx = await requireAdmin();
+    const result = await setContactStatusForAdmin(ctx, {
+      id: formDataString(formData, "id"),
+      status: formDataString(formData, "status"),
+    });
+    if (!result.ok) {
+      return { status: previousStatus, saved: false, error: result.error };
+    }
+    revalidatePath("/admin");
+    revalidatePath("/admin/kontakt");
+    revalidatePath(`/admin/kontakt/${result.id}`);
+    return { status: result.status, saved: true, error: null };
+  } catch (error) {
+    if (error instanceof AuthError) throw error;
+    return { status: previousStatus, saved: false, error: "Der Status konnte nicht gespeichert werden." };
+  }
 }
 
 export async function retryEmailAction(formData: FormData) {

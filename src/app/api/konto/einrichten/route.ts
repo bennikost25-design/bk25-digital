@@ -4,7 +4,13 @@ import { hmacSha256Hex } from "@/lib/crypto";
 import { BodyLimitError, apiError, readJsonBody } from "@/lib/http";
 import { completeInvitation } from "@/lib/invitations";
 import { OriginError, assertTrustedOrigin, getClientIp } from "@/lib/origin";
-import { RateLimitError, enforceRateLimit } from "@/lib/rate-limit";
+import {
+  RateLimitError,
+  RateLimitUnavailableError,
+  enforceRateLimit,
+  rateLimitUnavailableResponse,
+  rateLimitedResponse,
+} from "@/lib/rate-limit";
 
 const schema = z.object({
   token: z.string().min(16),
@@ -36,7 +42,8 @@ export async function POST(request: Request) {
     return Response.json({ ok: true });
   } catch (error) {
     if (error instanceof OriginError) return apiError(error.message, 403);
-    if (error instanceof RateLimitError) return apiError(error.message, 429);
+    if (error instanceof RateLimitError) return rateLimitedResponse(error);
+    if (error instanceof RateLimitUnavailableError) return rateLimitUnavailableResponse();
     if (error instanceof BodyLimitError) return apiError(error.message, 413);
     if (error instanceof z.ZodError) return apiError("Bitte prüfen Sie Ihre Angaben.", 400);
     if (error instanceof Error) return apiError(error.message, 400);

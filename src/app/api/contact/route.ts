@@ -4,7 +4,13 @@ import { getRequestContext } from "@/lib/cloudflare";
 import { hmacSha256Hex } from "@/lib/crypto";
 import { BodyLimitError, apiError, readJsonBody } from "@/lib/http";
 import { OriginError, assertTrustedOrigin, getClientIp } from "@/lib/origin";
-import { RateLimitError, enforceRateLimit } from "@/lib/rate-limit";
+import {
+  RateLimitError,
+  RateLimitUnavailableError,
+  enforceRateLimit,
+  rateLimitUnavailableResponse,
+  rateLimitedResponse,
+} from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
 
 export async function POST(request: Request) {
@@ -59,9 +65,8 @@ export async function POST(request: Request) {
     return Response.json({ ok: true, id: stored.id });
   } catch (error) {
     if (error instanceof OriginError) return apiError(error.message, 403);
-    if (error instanceof RateLimitError) {
-      return apiError(error.message, 429, { retryAfter: error.retryAfterSeconds });
-    }
+    if (error instanceof RateLimitError) return rateLimitedResponse(error);
+    if (error instanceof RateLimitUnavailableError) return rateLimitUnavailableResponse();
     if (error instanceof BodyLimitError) return apiError(error.message, 413);
     if (error instanceof SyntaxError) return apiError("Ungültige Anfrage.", 400);
     return apiError("Die Anfrage konnte nicht gespeichert werden.", 500);
