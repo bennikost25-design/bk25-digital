@@ -8,7 +8,11 @@ import { loginErrorMessage } from "@/lib/auth-client-errors";
 import { QuietAppShell } from "@/components/layout/QuietAppShell";
 import { StatusBanner, fieldClass, primaryButtonClass } from "@/components/ui/FormStatus";
 
-export function LoginForm() {
+export function LoginForm({
+  notice,
+}: {
+  notice?: { tone: "ok" | "warn" | "info"; message: string } | null;
+}) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -46,6 +50,7 @@ export function LoginForm() {
   return (
     <QuietAppShell title="Anmelden" subtitle="Zugang zum geschützten Kundenbereich.">
       <form className="max-w-md space-y-5 rounded-sm border border-black/10 bg-white p-6 sm:p-8" onSubmit={onSubmit} aria-busy={pending}>
+        {notice ? <StatusBanner tone={notice.tone}>{notice.message}</StatusBanner> : null}
         {error ? <StatusBanner tone="error">{error}</StatusBanner> : null}
         <div>
           <label htmlFor="email" className="mb-2 block font-[family-name:var(--font-heading)] text-sm">

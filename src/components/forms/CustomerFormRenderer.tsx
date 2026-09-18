@@ -19,7 +19,7 @@ import { StatusBanner, primaryButtonClass, secondaryButtonClass } from "@/compon
 import { cn } from "@/lib/utils";
 
 type Values = Record<string, unknown>;
-type SaveState = "idle" | "saving" | "saved" | "unsaved" | "offline" | "conflict";
+type SaveState = "idle" | "saving" | "saved" | "unsaved" | "offline" | "conflict" | "denied" | "error";
 
 type SubmissionView = {
   referenceNumber: string;
@@ -76,7 +76,12 @@ export function CustomerFormRenderer({
     (Boolean(done) && form.id !== "korrekturen") ||
     canStartNextRound;
 
-  const persist = async (nextValues: Values, nextStep: number, nextRevision: number) => {
+  const persist = async (
+    nextValues: Values,
+    nextStep: number,
+    nextRevision: number,
+    options: { manual?: boolean } = {},
+  ) => {
     setSaveState("saving");
     try {
       const response = await fetch(`/api/forms/${form.slug}/draft`, {
@@ -95,11 +100,28 @@ export function CustomerFormRenderer({
         setStatusMessage(data.error || "Speicherkonflikt. Bitte Seite neu laden.");
         return;
       }
-      if (!response.ok) throw new Error("save");
+      if (response.status === 401 || response.status === 403) {
+        setSaveState("denied");
+        if (options.manual) {
+          setStatusMessage(data.error || "Keine Berechtigung zum Speichern.");
+        }
+        return;
+      }
+      if (!response.ok) {
+        setSaveState("error");
+        if (options.manual) {
+          setStatusMessage(data.error || "Speichern derzeit nicht möglich.");
+        }
+        return;
+      }
       setRevision(data.revision ?? nextRevision + 1);
       setSaveState("saved");
+      if (options.manual) setStatusMessage(null);
     } catch {
       setSaveState("offline");
+      if (options.manual) {
+        setStatusMessage("Verbindung unterbrochen. Bitte erneut versuchen.");
+      }
     }
   };
 
@@ -217,6 +239,7 @@ export function CustomerFormRenderer({
         prev ? { ...prev, canStartNextRound: false, locked: false } : prev,
       );
       setSaveState("saved");
+      setStatusMessage("Neue Korrekturrunde ist bereit.");
     } catch {
       setStatusMessage("Verbindung unterbrochen. Bitte erneut versuchen.");
     } finally {
@@ -233,7 +256,11 @@ export function CustomerFormRenderer({
           ? "Verbindung unterbrochen"
           : saveState === "conflict"
             ? "Speicherkonflikt"
-            : "Nicht gespeichert";
+            : saveState === "denied"
+              ? "Keine Berechtigung"
+              : saveState === "error"
+                ? "Speichern nicht möglich"
+                : "Nicht gespeichert";
 
   if (done && (readOnly || isSummary)) {
     return (
@@ -271,7 +298,19 @@ export function CustomerFormRenderer({
       <p className="mb-6 text-sm text-muted" aria-live="polite">
         {saveLabel}
       </p>
-      {statusMessage ? <StatusBanner tone={saveState === "conflict" ? "warn" : "error"}>{statusMessage}</StatusBanner> : null}
+      {statusMessage ? (
+        <StatusBanner
+          tone={
+            saveState === "conflict"
+              ? "warn"
+              : statusMessage === "Neue Korrekturrunde ist bereit."
+                ? "ok"
+                : "error"
+          }
+        >
+          {statusMessage}
+        </StatusBanner>
+      ) : null}
 
       <div className="mb-6">
         <h2 className="text-[clamp(1.4rem,3vw,1.85rem)]">{step.title}</h2>
@@ -328,9 +367,10 @@ export function CustomerFormRenderer({
         <button
           type="button"
           className={secondaryButtonClass}
-          onClick={() => persist(values, stepIndex, revision)}
+          onClick={() => void persist(values, stepIndex, revision, { manual: true })}
+          disabled={readOnly || saveState === "saving"}
         >
-          Speichern
+          {saveState === "saving" ? "Wird gespeichert …" : "Speichern"}
         </button>
       </div>
     </div>

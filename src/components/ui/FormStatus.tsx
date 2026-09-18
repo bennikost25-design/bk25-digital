@@ -3,9 +3,11 @@ import { cn } from "@/lib/utils";
 export function StatusBanner({
   children,
   tone = "info",
+  className,
 }: {
   children: React.ReactNode;
   tone?: "info" | "ok" | "error" | "warn";
+  className?: string;
 }) {
   return (
     <div
@@ -15,6 +17,7 @@ export function StatusBanner({
         tone === "ok" && "border-[#047857] bg-[#ecfdf5] text-black",
         tone === "error" && "border-[#9f1239] bg-[#fff1f2] text-black",
         tone === "warn" && "border-[#b45309] bg-[#fffbeb] text-black",
+        className,
       )}
       role={tone === "error" ? "alert" : "status"}
       aria-live="polite"

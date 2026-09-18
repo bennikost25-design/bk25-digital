@@ -1,13 +1,17 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
-import { emailOutbox, projectFormAccess, user } from "@/db/schema";
+import { emailOutbox, user } from "@/db/schema";
+import { type AdminActionState, type FormAccessActionState } from "@/lib/admin-action-state";
 import { AuthError, requireAdmin } from "@/lib/authorization";
 import { setContactStatusForAdmin } from "@/lib/contact-admin";
 import { isContactStatus, type ContactStatus } from "@/lib/contact-status";
-import { createId, nowMs } from "@/lib/ids";
+import { setProjectFormAccess } from "@/lib/form-access";
+import { allowedFormKeys } from "@/lib/form-catalog";
+import { nowMs } from "@/lib/ids";
 import { createCustomerWithInvite, InvitationError, issueInvitation, revokeInvitation } from "@/lib/invitations";
 import { ALL_FORM_KEYS } from "@/lib/form-validation";
 
@@ -15,6 +19,20 @@ export type ContactStatusActionState = {
   status: ContactStatus | null;
   saved: boolean;
   error: string | null;
+};
+
+export type CreateCustomerValues = {
+  name: string;
+  email: string;
+  companyName: string;
+  projectTitle: string;
+  packageId: string;
+  formKeys: string[];
+};
+
+export type CreateCustomerState = {
+  error: string | null;
+  values: CreateCustomerValues;
 };
 
 const nameSchema = z.string().trim().min(1, "Bitte einen Namen angeben.").max(120);
@@ -33,7 +51,29 @@ function formDataString(formData: FormData, key: string) {
   return String(formData.get(key) ?? "");
 }
 
-export async function createCustomerAction(formData: FormData) {
+function valuesFromCustomerForm(formData: FormData): CreateCustomerValues {
+  return {
+    name: formDataString(formData, "name"),
+    email: formDataString(formData, "email"),
+    companyName: formDataString(formData, "companyName"),
+    projectTitle: formDataString(formData, "projectTitle"),
+    packageId: formDataString(formData, "packageId"),
+    formKeys: ALL_FORM_KEYS.filter((key) => formData.get(`form-${key}`) === "on"),
+  };
+}
+
+function revalidateCustomer(profileId?: string, userId?: string) {
+  revalidatePath("/admin");
+  revalidatePath("/admin/kunden");
+  if (profileId) revalidatePath(`/admin/kunden/${profileId}`);
+  if (userId) revalidatePath("/konto");
+}
+
+export async function createCustomerAction(
+  _prev: CreateCustomerState,
+  formData: FormData,
+): Promise<CreateCustomerState> {
+  const values = valuesFromCustomerForm(formData);
   const ctx = await requireAdmin();
   const parsed = z
     .object({
@@ -47,53 +87,101 @@ export async function createCustomerAction(formData: FormData) {
         .pipe(packageSchema),
     })
     .safeParse({
-      name: formDataString(formData, "name"),
-      email: formDataString(formData, "email"),
-      companyName: formDataString(formData, "companyName"),
-      projectTitle: formDataString(formData, "projectTitle"),
-      packageId: formDataString(formData, "packageId"),
+      name: values.name,
+      email: values.email,
+      companyName: values.companyName,
+      projectTitle: values.projectTitle,
+      packageId: values.packageId,
     });
   if (!parsed.success) {
-    throw new Error("Bitte prüfen Sie Ihre Angaben.");
+    return { error: "Bitte prüfen Sie Ihre Angaben.", values };
   }
-  const formKeys = ALL_FORM_KEYS.filter((key) => formData.get(`form-${key}`) === "on");
+  let created: Awaited<ReturnType<typeof createCustomerWithInvite>>;
   try {
-    await createCustomerWithInvite(ctx, {
+    created = await createCustomerWithInvite(ctx, {
       ...parsed.data,
-      formKeys,
+      formKeys: allowedFormKeys(values.formKeys),
     });
   } catch (error) {
-    if (error instanceof InvitationError) throw error;
-    throw new Error("Kunde konnte nicht angelegt werden.");
+    if (error instanceof InvitationError) {
+      return { error: error.message, values };
+    }
+    return { error: "Kunde konnte nicht angelegt werden.", values };
   }
-  revalidatePath("/admin");
-  revalidatePath("/admin/kunden");
+  revalidateCustomer(created.profileId);
+  redirect(
+    `/admin/kunden/${created.profileId}?hinweis=${created.inviteQueued ? "angelegt" : "angelegt-versand"}`,
+  );
 }
 
-export async function resendInviteAction(formData: FormData) {
-  const ctx = await requireAdmin();
-  const userId = idSchema.parse(formDataString(formData, "userId"));
-  const rows = await ctx.db.select().from(user).where(eq(user.id, userId)).limit(1);
-  const target = rows[0];
-  if (!target) return;
-  await issueInvitation(ctx, target.id, target.email, target.name);
-  revalidatePath("/admin/kunden");
+export async function resendInviteAction(
+  _prev: AdminActionState,
+  formData: FormData,
+): Promise<AdminActionState> {
+  try {
+    const ctx = await requireAdmin();
+    const parsed = idSchema.safeParse(formDataString(formData, "userId"));
+    if (!parsed.success) return { ok: false, message: null, error: "Bitte prüfen Sie Ihre Angaben." };
+    const rows = await ctx.db.select().from(user).where(eq(user.id, parsed.data)).limit(1);
+    const target = rows[0];
+    if (!target) return { ok: false, message: null, error: "Dieser Kunde wurde nicht gefunden." };
+    const issued = await issueInvitation(ctx, target.id, target.email, target.name);
+    revalidateCustomer(formDataString(formData, "profileId") || undefined, target.id);
+    return {
+      ok: true,
+      error: null,
+      message: issued.inviteQueued
+        ? "Neue Einladung wurde zum Versand vorgemerkt. Zuvor offene Links sind nicht mehr gültig."
+        : "Neue Einladung wurde gespeichert, konnte aber nicht zum Versand vorgemerkt werden.",
+    };
+  } catch (error) {
+    if (error instanceof AuthError) throw error;
+    return { ok: false, message: null, error: "Die Einladung konnte nicht erneut gesendet werden." };
+  }
 }
 
-export async function revokeInviteAction(formData: FormData) {
-  const ctx = await requireAdmin();
-  await revokeInvitation(ctx, idSchema.parse(formDataString(formData, "invitationId")));
-  revalidatePath("/admin/kunden");
+export async function revokeInviteAction(
+  _prev: AdminActionState,
+  formData: FormData,
+): Promise<AdminActionState> {
+  try {
+    const ctx = await requireAdmin();
+    const parsed = idSchema.safeParse(formDataString(formData, "invitationId"));
+    if (!parsed.success) return { ok: false, message: null, error: "Bitte prüfen Sie Ihre Angaben." };
+    await revokeInvitation(ctx, parsed.data);
+    revalidateCustomer(formDataString(formData, "profileId") || undefined);
+    return { ok: true, message: "Einladung widerrufen. Der bisherige Link ist nicht mehr gültig.", error: null };
+  } catch (error) {
+    if (error instanceof AuthError) throw error;
+    return { ok: false, message: null, error: "Die Einladung konnte nicht widerrufen werden." };
+  }
 }
 
-export async function setBanAction(formData: FormData) {
-  const ctx = await requireAdmin();
-  const banned = formDataString(formData, "banned") === "1";
-  await ctx.db
-    .update(user)
-    .set({ banned, updatedAt: new Date(nowMs()) })
-    .where(eq(user.id, idSchema.parse(formDataString(formData, "userId"))));
-  revalidatePath("/admin/kunden");
+export async function setBanAction(
+  _prev: AdminActionState,
+  formData: FormData,
+): Promise<AdminActionState> {
+  try {
+    const ctx = await requireAdmin();
+    const parsed = idSchema.safeParse(formDataString(formData, "userId"));
+    if (!parsed.success) return { ok: false, message: null, error: "Bitte prüfen Sie Ihre Angaben." };
+    const banned = formDataString(formData, "banned") === "1";
+    const updated = await ctx.db
+      .update(user)
+      .set({ banned, updatedAt: new Date(nowMs()) })
+      .where(eq(user.id, parsed.data))
+      .returning({ id: user.id });
+    if (!updated[0]) return { ok: false, message: null, error: "Dieser Kunde wurde nicht gefunden." };
+    revalidateCustomer(formDataString(formData, "profileId") || undefined, parsed.data);
+    return {
+      ok: true,
+      error: null,
+      message: banned ? "Konto gesperrt." : "Konto entsperrt.",
+    };
+  } catch (error) {
+    if (error instanceof AuthError) throw error;
+    return { ok: false, message: null, error: "Der Kontozugriff konnte nicht geändert werden." };
+  }
 }
 
 export async function setContactStatusAction(
@@ -120,39 +208,76 @@ export async function setContactStatusAction(
   }
 }
 
-export async function retryEmailAction(formData: FormData) {
-  const ctx = await requireAdmin();
-  const id = idSchema.parse(formDataString(formData, "id"));
-  await ctx.db
-    .update(emailOutbox)
-    .set({
-      status: "pending",
-      nextAttemptAt: new Date(nowMs()),
-      updatedAt: new Date(nowMs()),
-      attempts: sql`CASE WHEN attempts >= 8 THEN 7 ELSE attempts END`,
-    })
-    .where(and(eq(emailOutbox.id, id), isNull(emailOutbox.cancelledAt)));
-  await ctx.bindings.EMAIL_QUEUE.send({ outboxId: id });
-  revalidatePath("/admin/emails");
+export async function retryEmailAction(
+  _prev: AdminActionState,
+  formData: FormData,
+): Promise<AdminActionState> {
+  try {
+    const ctx = await requireAdmin();
+    const parsed = idSchema.safeParse(formDataString(formData, "id"));
+    if (!parsed.success) return { ok: false, message: null, error: "Bitte prüfen Sie Ihre Angaben." };
+    const updated = await ctx.db
+      .update(emailOutbox)
+      .set({
+        status: "pending",
+        nextAttemptAt: new Date(nowMs()),
+        updatedAt: new Date(nowMs()),
+        attempts: sql`CASE WHEN attempts >= 8 THEN 7 ELSE attempts END`,
+      })
+      .where(and(eq(emailOutbox.id, parsed.data), isNull(emailOutbox.cancelledAt)))
+      .returning({ id: emailOutbox.id });
+    if (!updated[0]) {
+      return { ok: false, message: null, error: "Diese Nachricht kann nicht erneut eingereiht werden." };
+    }
+    try {
+      await ctx.bindings.EMAIL_QUEUE.send({ outboxId: parsed.data });
+    } catch {
+      revalidatePath("/admin/emails");
+      return {
+        ok: true,
+        message: "Die Nachricht ist wieder als ausstehend gespeichert, konnte aber nicht eingereiht werden.",
+        error: null,
+      };
+    }
+    revalidatePath("/admin/emails");
+    return { ok: true, message: "Die Nachricht wurde erneut zum Versand vorgemerkt.", error: null };
+  } catch (error) {
+    if (error instanceof AuthError) throw error;
+    return { ok: false, message: null, error: "Die Nachricht konnte nicht erneut eingereiht werden." };
+  }
 }
 
-export async function grantFormAccessAction(formData: FormData) {
-  const ctx = await requireAdmin();
-  const projectId = idSchema.parse(formDataString(formData, "projectId"));
-  const formKey = z.enum(ALL_FORM_KEYS).parse(formDataString(formData, "formKey"));
+export async function setFormAccessAction(
+  prev: FormAccessActionState,
+  formData: FormData,
+): Promise<FormAccessActionState> {
+  const previousGranted = prev.granted;
   try {
-    await ctx.db.insert(projectFormAccess).values({
-      id: createId(),
-      projectId,
-      formKey,
-      grantedByAdminId: ctx.user.id,
-      grantedAt: new Date(nowMs()),
+    const ctx = await requireAdmin();
+    const granted = formDataString(formData, "granted") === "1";
+    const result = await setProjectFormAccess(ctx, {
+      projectId: formDataString(formData, "projectId"),
+      formKey: formDataString(formData, "formKey"),
+      granted,
     });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "";
-    if (!/UNIQUE constraint failed|SQLITE_CONSTRAINT/i.test(message)) {
-      throw error;
+    if (!result.ok) {
+      return { ok: false, granted: previousGranted, message: null, error: result.error };
     }
+    revalidateCustomer(formDataString(formData, "profileId") || undefined);
+    revalidatePath("/konto");
+    return {
+      ok: true,
+      granted: result.granted,
+      error: null,
+      message: result.granted ? "Formularfreigabe gespeichert." : "Formularzugriff entzogen.",
+    };
+  } catch (error) {
+    if (error instanceof AuthError) throw error;
+    return {
+      ok: false,
+      granted: previousGranted,
+      message: null,
+      error: "Die Formularfreigabe konnte nicht geändert werden.",
+    };
   }
-  revalidatePath("/admin/kunden");
 }

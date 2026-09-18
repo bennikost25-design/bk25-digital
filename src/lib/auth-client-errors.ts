@@ -105,7 +105,7 @@ export function classifyAuthClientError(
   if (PASSWORD_INVALID_CODES.has(code)) {
     return { kind: "password_invalid" };
   }
-  if (status === 401 || code === "INVALID_EMAIL_OR_PASSWORD") {
+  if (status === 401 || code === "INVALID_EMAIL_OR_PASSWORD" || code === "INVALID_PASSWORD") {
     return { kind: "credentials" };
   }
   if (typeof status === "number" && status >= 400 && status < 500) {

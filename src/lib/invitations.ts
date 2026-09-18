@@ -13,7 +13,7 @@ import { writeAudit } from "@/lib/audit";
 import type { AuthedContext } from "@/lib/authorization";
 import { hmacSha256Hex, randomPassword, randomToken } from "@/lib/crypto";
 import { createId, nowMs } from "@/lib/ids";
-import { ALL_FORM_KEYS } from "@/lib/form-validation";
+import { allowedFormKeys } from "@/lib/form-catalog";
 import { buildOutboxRow, enqueueOutbox } from "@/lib/mail/outbox";
 
 const INVITE_TTL_MS = 1000 * 60 * 60 * 48;
@@ -65,9 +65,7 @@ export async function createCustomerWithInvite(
   const inviteId = createId();
   const token = randomToken(32);
   const tokenHash = await hmacSha256Hex(ctx.env.BETTER_AUTH_SECRET, token);
-  const allowedKeys = input.formKeys.filter((key) =>
-    ALL_FORM_KEYS.includes(key as (typeof ALL_FORM_KEYS)[number]),
-  );
+  const allowedKeys = allowedFormKeys(input.formKeys);
   const outbox = buildOutboxRow({
     type: "invite-setup",
     toEmail: email,
@@ -149,15 +147,25 @@ export async function createCustomerWithInvite(
     }
     return statements;
   });
-  await writeAudit(ctx.db, {
-    type: "customer.created",
-    actorUserId: ctx.user.id,
-    resourceType: "user",
-    resourceId: userId,
-    result: "ok",
-  });
-  await enqueueOutbox(ctx.db, ctx.bindings.EMAIL_QUEUE, outbox.id);
-  return { userId, profileId, projectId };
+  try {
+    await writeAudit(ctx.db, {
+      type: "customer.created",
+      actorUserId: ctx.user.id,
+      resourceType: "user",
+      resourceId: userId,
+      result: "ok",
+    });
+  } catch {
+    // Customer rows are already stored. Audit must not roll back the create.
+  }
+
+  let inviteQueued = true;
+  try {
+    await enqueueOutbox(ctx.db, ctx.bindings.EMAIL_QUEUE, outbox.id);
+  } catch {
+    inviteQueued = false;
+  }
+  return { userId, profileId, projectId, inviteQueued };
 }
 
 export async function issueInvitation(
@@ -231,7 +239,13 @@ export async function issueInvitation(
     }
     return statements;
   });
-  await enqueueOutbox(ctx.db, ctx.bindings.EMAIL_QUEUE, outbox.id);
+  let inviteQueued = true;
+  try {
+    await enqueueOutbox(ctx.db, ctx.bindings.EMAIL_QUEUE, outbox.id);
+  } catch {
+    inviteQueued = false;
+  }
+  return { inviteId, inviteQueued };
 }
 
 export async function revokeInvitation(ctx: AuthedContext, invitationId: string) {

@@ -1,16 +1,11 @@
 import { z } from "zod";
 import { getRequestContext } from "@/lib/cloudflare";
 import { hmacSha256Hex } from "@/lib/crypto";
-import { BodyLimitError, apiError, readJsonBody } from "@/lib/http";
+import { readJsonBody } from "@/lib/http";
 import { completeInvitation } from "@/lib/invitations";
-import { OriginError, assertTrustedOrigin, getClientIp } from "@/lib/origin";
-import {
-  RateLimitError,
-  RateLimitUnavailableError,
-  enforceRateLimit,
-  rateLimitUnavailableResponse,
-  rateLimitedResponse,
-} from "@/lib/rate-limit";
+import { assertTrustedOrigin, getClientIp } from "@/lib/origin";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { setupApiErrorResponse } from "@/lib/setup-api-error";
 
 const schema = z.object({
   token: z.string().min(16),
@@ -37,16 +32,10 @@ export async function POST(request: Request) {
       ctx: { ...ctx, bindings: ctx.bindings },
       token: body.token,
       password: body.password,
-      name: body.name,
+      name: body.name?.trim() ? body.name : undefined,
     });
     return Response.json({ ok: true });
   } catch (error) {
-    if (error instanceof OriginError) return apiError(error.message, 403);
-    if (error instanceof RateLimitError) return rateLimitedResponse(error);
-    if (error instanceof RateLimitUnavailableError) return rateLimitUnavailableResponse();
-    if (error instanceof BodyLimitError) return apiError(error.message, 413);
-    if (error instanceof z.ZodError) return apiError("Bitte prüfen Sie Ihre Angaben.", 400);
-    if (error instanceof Error) return apiError(error.message, 400);
-    return apiError("Einrichtung nicht möglich.", 500);
+    return setupApiErrorResponse(error);
   }
 }
