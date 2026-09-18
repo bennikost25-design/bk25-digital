@@ -33,16 +33,15 @@ export default async function AdminEmailsPage() {
                   {row.lastError ? ` · ${row.lastError}` : ""}
                 </p>
               </div>
-              {row.status !== "sent" && !row.cancelledAt ? (
-                <AdminActionForm
-                  action={retryEmailAction}
-                  submitLabel="Erneut einreihen"
-                  pendingLabel="Wird vorgemerkt …"
-                  buttonClass={secondaryButtonClass}
-                >
-                  <input type="hidden" name="id" value={row.id} />
-                </AdminActionForm>
-              ) : null}
+              <AdminActionForm
+                action={retryEmailAction}
+                submitLabel="Erneut einreihen"
+                pendingLabel="Wird vorgemerkt …"
+                buttonClass={secondaryButtonClass}
+                allowSubmit={row.status !== "sent" && !row.cancelledAt}
+              >
+                <input type="hidden" name="id" value={row.id} />
+              </AdminActionForm>
             </li>
           ))}
         </ul>

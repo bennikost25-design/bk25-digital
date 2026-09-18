@@ -10,6 +10,14 @@ export const emptyAdminActionState: AdminActionState = {
   error: null,
 };
 
+export function adminActionHasFeedback(state: AdminActionState, pending: boolean) {
+  return pending || Boolean(state.message) || Boolean(state.error);
+}
+
+export function adminActionShowsSubmit(allowSubmit: boolean, pending: boolean) {
+  return allowSubmit || pending;
+}
+
 export type FormAccessActionState = AdminActionState & {
   granted: boolean;
 };

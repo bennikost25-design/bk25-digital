@@ -14,6 +14,7 @@ import { allowedFormKeys } from "@/lib/form-catalog";
 import { nowMs } from "@/lib/ids";
 import { createCustomerWithInvite, InvitationError, issueInvitation, revokeInvitation } from "@/lib/invitations";
 import { ALL_FORM_KEYS } from "@/lib/form-validation";
+import { customerCreatedHint } from "@/lib/notices";
 
 export type ContactStatusActionState = {
   status: ContactStatus | null;
@@ -110,7 +111,7 @@ export async function createCustomerAction(
   }
   revalidateCustomer(created.profileId);
   redirect(
-    `/admin/kunden/${created.profileId}?hinweis=${created.inviteQueued ? "angelegt" : "angelegt-versand"}`,
+    `/admin/kunden/${created.profileId}?hinweis=${customerCreatedHint(created)}`,
   );
 }
 
@@ -153,6 +154,9 @@ export async function revokeInviteAction(
     return { ok: true, message: "Einladung widerrufen. Der bisherige Link ist nicht mehr gültig.", error: null };
   } catch (error) {
     if (error instanceof AuthError) throw error;
+    if (error instanceof InvitationError) {
+      return { ok: false, message: null, error: error.message };
+    }
     return { ok: false, message: null, error: "Die Einladung konnte nicht widerrufen werden." };
   }
 }

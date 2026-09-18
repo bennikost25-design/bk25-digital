@@ -9,11 +9,12 @@ import {
   projectFormAccess,
   user,
 } from "@/db/schema";
-import { writeAudit } from "@/lib/audit";
+import { writeAudit, AuditWriteError, AUDIT_WRITE_FAILED_CODE } from "@/lib/audit";
 import type { AuthedContext } from "@/lib/authorization";
 import { hmacSha256Hex, randomPassword, randomToken } from "@/lib/crypto";
 import { createId, nowMs } from "@/lib/ids";
 import { allowedFormKeys } from "@/lib/form-catalog";
+import { invitationLifecycle, revokeInvitationMessage } from "@/lib/invitation-status";
 import { buildOutboxRow, enqueueOutbox } from "@/lib/mail/outbox";
 
 const INVITE_TTL_MS = 1000 * 60 * 60 * 48;
@@ -147,6 +148,7 @@ export async function createCustomerWithInvite(
     }
     return statements;
   });
+  let auditWritten = true;
   try {
     await writeAudit(ctx.db, {
       type: "customer.created",
@@ -155,8 +157,11 @@ export async function createCustomerWithInvite(
       resourceId: userId,
       result: "ok",
     });
-  } catch {
-    // Customer rows are already stored. Audit must not roll back the create.
+  } catch (error) {
+    auditWritten = false;
+    if (!(error instanceof AuditWriteError)) {
+      console.error("[audit]", { code: AUDIT_WRITE_FAILED_CODE, type: "customer.created" });
+    }
   }
 
   let inviteQueued = true;
@@ -165,7 +170,7 @@ export async function createCustomerWithInvite(
   } catch {
     inviteQueued = false;
   }
-  return { userId, profileId, projectId, inviteQueued };
+  return { userId, profileId, projectId, inviteQueued, auditWritten };
 }
 
 export async function issueInvitation(
@@ -249,9 +254,29 @@ export async function issueInvitation(
 }
 
 export async function revokeInvitation(ctx: AuthedContext, invitationId: string) {
+  const rows = await ctx.db.select().from(invitation).where(eq(invitation.id, invitationId)).limit(1);
+  const current = rows[0];
+  if (!current) {
+    throw new InvitationError(revokeInvitationMessage("missing"));
+  }
+  const lifecycle = invitationLifecycle(current);
+  if (lifecycle !== "open") {
+    throw new InvitationError(revokeInvitationMessage(lifecycle));
+  }
+
   const now = new Date(nowMs());
   await runAtomicStatements(ctx.db, (tx) => [
-    tx.update(invitation).set({ revokedAt: now }).where(eq(invitation.id, invitationId)),
+    tx
+      .update(invitation)
+      .set({ revokedAt: now })
+      .where(
+        and(
+          eq(invitation.id, invitationId),
+          isNull(invitation.usedAt),
+          isNull(invitation.revokedAt),
+          gt(invitation.expiresAt, now),
+        ),
+      ),
     tx
       .update(emailOutbox)
       .set({
@@ -268,6 +293,15 @@ export async function revokeInvitation(ctx: AuthedContext, invitationId: string)
         ),
       ),
   ]);
+
+  const afterRows = await ctx.db.select().from(invitation).where(eq(invitation.id, invitationId)).limit(1);
+  const after = afterRows[0];
+  if (!after) {
+    throw new InvitationError(revokeInvitationMessage("missing"));
+  }
+  if (invitationLifecycle(after) !== "revoked") {
+    throw new InvitationError(revokeInvitationMessage(invitationLifecycle(after)));
+  }
 }
 
 export async function completeInvitation(options: {

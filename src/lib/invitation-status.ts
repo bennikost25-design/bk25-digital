@@ -46,3 +46,11 @@ export async function inspectInvitation(
 
 export const INVALID_INVITE_MESSAGE =
   "Dieser Einrichtungs-Link ist ungültig oder nicht mehr gültig. Bitte fordern Sie eine neue Einladung bei Ihrem Administrator an.";
+
+export function revokeInvitationMessage(lifecycle: InvitationLifecycle | "missing") {
+  if (lifecycle === "missing") return "Diese Einladung wurde nicht gefunden.";
+  if (lifecycle === "used") return "Diese Einladung wurde bereits verwendet.";
+  if (lifecycle === "revoked") return "Diese Einladung ist bereits widerrufen.";
+  if (lifecycle === "expired") return "Diese Einladung ist bereits abgelaufen.";
+  return "Die Einladung konnte nicht widerrufen werden.";
+}

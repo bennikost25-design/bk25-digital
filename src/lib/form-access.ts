@@ -8,11 +8,6 @@ export type FormAccessResult =
   | { ok: true; granted: boolean }
   | { ok: false; error: string };
 
-function isUniqueConflict(error: unknown) {
-  const message = error instanceof Error ? error.message : "";
-  return /UNIQUE constraint failed|SQLITE_CONSTRAINT/i.test(message);
-}
-
 export async function setProjectFormAccess(
   ctx: AuthedContext,
   input: { projectId: string; formKey: string; granted: boolean },
@@ -33,16 +28,25 @@ export async function setProjectFormAccess(
 
   try {
     if (input.granted) {
-      try {
-        await ctx.db.insert(projectFormAccess).values({
+      await ctx.db
+        .insert(projectFormAccess)
+        .values({
           id: createId(),
           projectId: input.projectId,
           formKey,
           grantedByAdminId: ctx.user.id,
           grantedAt: new Date(nowMs()),
+        })
+        .onConflictDoNothing({
+          target: [projectFormAccess.projectId, projectFormAccess.formKey],
         });
-      } catch (error) {
-        if (!isUniqueConflict(error)) throw error;
+      const existing = await ctx.db
+        .select({ id: projectFormAccess.id })
+        .from(projectFormAccess)
+        .where(and(eq(projectFormAccess.projectId, input.projectId), eq(projectFormAccess.formKey, formKey)))
+        .limit(1);
+      if (!existing[0]) {
+        return { ok: false, error: "Die Formularfreigabe konnte nicht geändert werden." };
       }
       return { ok: true, granted: true };
     }

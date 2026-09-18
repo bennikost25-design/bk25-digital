@@ -129,17 +129,16 @@ export default async function AdminCustomerDetailPage({
                         Gültig bis {new Date(item.expiresAt).toLocaleString("de-DE")}
                       </p>
                     </div>
-                    {lifecycle === "open" ? (
-                      <AdminActionForm
-                        action={revokeInviteAction}
-                        submitLabel="Widerrufen"
-                        pendingLabel="Wird widerrufen …"
-                        buttonClass={secondaryButtonClass}
-                      >
-                        <input type="hidden" name="invitationId" value={item.id} />
-                        <input type="hidden" name="profileId" value={profile.id} />
-                      </AdminActionForm>
-                    ) : null}
+                    <AdminActionForm
+                      action={revokeInviteAction}
+                      submitLabel="Widerrufen"
+                      pendingLabel="Wird widerrufen …"
+                      buttonClass={secondaryButtonClass}
+                      allowSubmit={lifecycle === "open"}
+                    >
+                      <input type="hidden" name="invitationId" value={item.id} />
+                      <input type="hidden" name="profileId" value={profile.id} />
+                    </AdminActionForm>
                   </li>
                 );
               })}

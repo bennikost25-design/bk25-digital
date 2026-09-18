@@ -3,6 +3,15 @@ import { auditEvent } from "@/db/schema";
 import type { AppDb } from "@/lib/cloudflare";
 import { createId, nowMs } from "@/lib/ids";
 
+export const AUDIT_WRITE_FAILED_CODE = "audit_write_failed";
+
+export class AuditWriteError extends Error {
+  constructor() {
+    super(AUDIT_WRITE_FAILED_CODE);
+    this.name = "AuditWriteError";
+  }
+}
+
 export async function writeAudit(
   db: AppDb,
   input: {
@@ -13,15 +22,20 @@ export async function writeAudit(
     result: "ok" | "denied" | "error";
   },
 ) {
-  await db.insert(auditEvent).values({
-    id: createId(),
-    type: input.type,
-    actorUserId: input.actorUserId ?? null,
-    resourceType: input.resourceType,
-    resourceId: input.resourceId,
-    result: input.result,
-    createdAt: new Date(nowMs()),
-  });
+  try {
+    await db.insert(auditEvent).values({
+      id: createId(),
+      type: input.type,
+      actorUserId: input.actorUserId ?? null,
+      resourceType: input.resourceType,
+      resourceId: input.resourceId,
+      result: input.result,
+      createdAt: new Date(nowMs()),
+    });
+  } catch {
+    console.error("[audit]", { code: AUDIT_WRITE_FAILED_CODE, type: input.type });
+    throw new AuditWriteError();
+  }
 }
 
 export async function hasAudit(

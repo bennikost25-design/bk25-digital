@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { createElement } from "react";
 import { eq } from "drizzle-orm";
+import { renderToStaticMarkup } from "react-dom/server";
 import { verifyPassword } from "better-auth/crypto";
 import {
   account,
@@ -11,6 +13,7 @@ import {
 } from "@/db/schema";
 import { AuthError, type AuthedContext } from "@/lib/authorization";
 import { createAuth } from "@/lib/auth";
+import { AdminActionControls } from "@/components/admin/AdminActionForm";
 import { setProjectFormAccess } from "@/lib/form-access";
 import { allowedFormKeys, DEFAULT_NEW_CUSTOMER_FORM_KEYS } from "@/lib/form-catalog";
 import { emptyFormValues, requireFormDefinition } from "@/lib/form-validation";
@@ -22,8 +25,14 @@ import {
   createCustomerWithInvite,
   InvitationError,
   issueInvitation,
+  revokeInvitation,
 } from "@/lib/invitations";
-import { inspectInvitation, invitationLifecycle } from "@/lib/invitation-status";
+import {
+  inspectInvitation,
+  invitationLifecycle,
+  revokeInvitationMessage,
+} from "@/lib/invitation-status";
+import { customerCreatedHint, noticeFromQuery } from "@/lib/notices";
 import { SETUP_UNAVAILABLE_MESSAGE, setupApiErrorResponse } from "@/lib/setup-api-error";
 import { createTestDb, localEnv } from "./helpers";
 
@@ -115,6 +124,7 @@ describe("selected form grants on customer create", () => {
       formKeys: ["unternehmen-inhalte"],
     });
     expect(created.inviteQueued).toBe(false);
+    expect(created.auditWritten).toBe(true);
     const accounts = await db.select().from(user).where(eq(user.email, "queue@test.de"));
     expect(accounts).toHaveLength(1);
     const outbox = await db.select().from(emailOutbox);
@@ -219,6 +229,47 @@ describe("individual form access", () => {
         granted: false,
       }),
     ).rejects.toBeInstanceOf(AuthError);
+  });
+
+  it("treats an existing grant as idempotent and rejects other constraint failures", async () => {
+    const { db } = createTestDb();
+    const adminId = await seedAdmin(db);
+    const admin = asCtx(db, adminId, "admin");
+    const created = await createCustomerWithInvite(admin, {
+      name: "Idempotent",
+      email: "idempotent@test.de",
+      companyName: "Idempotent",
+      projectTitle: "Idempotent",
+      formKeys: ["design"],
+    });
+
+    const again = await setProjectFormAccess(admin, {
+      projectId: created.projectId,
+      formKey: "design",
+      granted: true,
+    });
+    expect(again).toEqual({ ok: true, granted: true });
+    const access = await db
+      .select()
+      .from(projectFormAccess)
+      .where(eq(projectFormAccess.projectId, created.projectId));
+    expect(access.map((row) => row.formKey)).toEqual(["design"]);
+
+    const ghostAdmin = asCtx(db, createId(), "admin");
+    const failed = await setProjectFormAccess(ghostAdmin, {
+      projectId: created.projectId,
+      formKey: "korrekturen",
+      granted: true,
+    });
+    expect(failed).toEqual({
+      ok: false,
+      error: "Die Formularfreigabe konnte nicht geändert werden.",
+    });
+    const afterFailure = await db
+      .select()
+      .from(projectFormAccess)
+      .where(eq(projectFormAccess.projectId, created.projectId));
+    expect(afterFailure.map((row) => row.formKey)).toEqual(["design"]);
   });
 });
 
@@ -364,6 +415,163 @@ describe("invitation inspect and activation", () => {
     await expect(
       verifyPassword({ hash: accounts[0]!.password!, password: "neues-passwort-12" }),
     ).resolves.toBe(true);
+  });
+});
+
+describe("admin action confirmation after controls disappear", () => {
+  it("keeps the success banner after the submit control is removed", () => {
+    const html = renderToStaticMarkup(
+      createElement(AdminActionControls, {
+        formAction: () => undefined,
+        allowSubmit: false,
+        pending: false,
+        submitLabel: "Widerrufen",
+        pendingLabel: "Wird widerrufen …",
+        state: {
+          ok: true,
+          message: "Einladung widerrufen. Der bisherige Link ist nicht mehr gültig.",
+          error: null,
+        },
+      }),
+    );
+    expect(html).toContain("Einladung widerrufen. Der bisherige Link ist nicht mehr gültig.");
+    expect(html).not.toContain(">Widerrufen<");
+    expect(html).not.toContain("Wird widerrufen");
+  });
+
+  it("keeps a retry confirmation after the queue button is gone", () => {
+    const html = renderToStaticMarkup(
+      createElement(AdminActionControls, {
+        formAction: () => undefined,
+        allowSubmit: false,
+        pending: false,
+        submitLabel: "Erneut einreihen",
+        pendingLabel: "Wird vorgemerkt …",
+        state: {
+          ok: true,
+          message: "Die Nachricht wurde erneut zum Versand vorgemerkt.",
+          error: null,
+        },
+      }),
+    );
+    expect(html).toContain("Die Nachricht wurde erneut zum Versand vorgemerkt.");
+    expect(html).not.toContain("Erneut einreihen");
+  });
+});
+
+describe("invitation revoke confirmation", () => {
+  it("does not treat a missing or already closed invitation as a fresh revoke", async () => {
+    const { db } = createTestDb();
+    const adminId = await seedAdmin(db);
+    const admin = asCtx(db, adminId, "admin");
+    const created = await createCustomerWithInvite(admin, {
+      name: "Widerruf",
+      email: "widerruf@test.de",
+      companyName: "Widerruf",
+      projectTitle: "Widerruf",
+      formKeys: [],
+    });
+    const open = (await db.select().from(invitation).where(eq(invitation.userId, created.userId)))[0]!;
+
+    await expect(revokeInvitation(admin, createId())).rejects.toMatchObject({
+      name: "InvitationError",
+      message: revokeInvitationMessage("missing"),
+    });
+
+    await revokeInvitation(admin, open.id);
+    await expect(revokeInvitation(admin, open.id)).rejects.toMatchObject({
+      name: "InvitationError",
+      message: revokeInvitationMessage("revoked"),
+    });
+
+    const used = await createCustomerWithInvite(admin, {
+      name: "Verwendet",
+      email: "verwendet-revoke@test.de",
+      companyName: "Verwendet",
+      projectTitle: "Verwendet",
+      formKeys: [],
+    });
+    const usedInvite = (await db.select().from(invitation).where(eq(invitation.userId, used.userId)))[0]!;
+    const usedToken = tokenFromOutbox((await db.select().from(emailOutbox)).find((row) => row.relatedResourceId === usedInvite.id)!.payloadJson);
+    await completeInvitation({
+      ctx: { db, env: localEnv(), bindings: admin.bindings },
+      token: usedToken,
+      password: "neues-passwort-12",
+    });
+    await expect(revokeInvitation(admin, usedInvite.id)).rejects.toMatchObject({
+      name: "InvitationError",
+      message: revokeInvitationMessage("used"),
+    });
+
+    const expiredId = createId();
+    await db.insert(invitation).values({
+      id: expiredId,
+      userId: created.userId,
+      email: "widerruf@test.de",
+      tokenHash: await hmacSha256Hex(localEnv().BETTER_AUTH_SECRET, `${createId()}${createId()}`.slice(0, 32)),
+      expiresAt: new Date(Date.now() - 1000),
+      usedAt: null,
+      revokedAt: null,
+      createdByAdminId: adminId,
+      createdAt: new Date(),
+    });
+    await expect(revokeInvitation(admin, expiredId)).rejects.toMatchObject({
+      name: "InvitationError",
+      message: revokeInvitationMessage("expired"),
+    });
+    const expiredRow = (await db.select().from(invitation).where(eq(invitation.id, expiredId)))[0]!;
+    expect(expiredRow.revokedAt).toBeNull();
+  });
+});
+
+describe("customer create audit follow-up", () => {
+  it("keeps a stored customer when audit writing fails afterwards", async () => {
+    const { db, sqlite } = createTestDb();
+    const adminId = await seedAdmin(db);
+    const ctx = asCtx(db, adminId, "admin");
+    sqlite.exec("DROP TABLE audit_event");
+    const logged: unknown[] = [];
+    const spy = vi.spyOn(console, "error").mockImplementation((...args) => {
+      logged.push(args);
+    });
+
+    const created = await createCustomerWithInvite(ctx, {
+      name: "Protokoll",
+      email: "protokoll@test.de",
+      companyName: "Protokoll GmbH",
+      projectTitle: "Auftrag Protokoll",
+      formKeys: ["unternehmen-inhalte"],
+    });
+    spy.mockRestore();
+    expect(created.auditWritten).toBe(false);
+    expect(created.inviteQueued).toBe(true);
+    expect(customerCreatedHint(created)).toBe("angelegt-protokoll");
+    expect(noticeFromQuery("angelegt-protokoll")?.message).toContain("Kunde angelegt");
+    expect(noticeFromQuery("angelegt-protokoll")?.message).not.toContain("erneut anlegen");
+    expect(JSON.stringify(logged)).toContain("audit_write_failed");
+    expect(JSON.stringify(logged)).not.toMatch(/SQLITE|DROP TABLE|protokoll@test\.de/i);
+
+    const accounts = await db.select().from(user).where(eq(user.email, "protokoll@test.de"));
+    expect(accounts).toHaveLength(1);
+    await expect(
+      createCustomerWithInvite(ctx, {
+        name: "Protokoll 2",
+        email: "protokoll@test.de",
+        companyName: "Protokoll GmbH",
+        projectTitle: "Auftrag Protokoll",
+        formKeys: [],
+      }),
+    ).rejects.toBeInstanceOf(InvitationError);
+    const stillOne = await db.select().from(user).where(eq(user.email, "protokoll@test.de"));
+    expect(stillOne).toHaveLength(1);
+  });
+
+  it("maps queue and audit follow-up flags without claiming a missing customer", () => {
+    expect(customerCreatedHint({ inviteQueued: true, auditWritten: true })).toBe("angelegt");
+    expect(customerCreatedHint({ inviteQueued: false, auditWritten: true })).toBe("angelegt-versand");
+    expect(customerCreatedHint({ inviteQueued: true, auditWritten: false })).toBe("angelegt-protokoll");
+    expect(customerCreatedHint({ inviteQueued: false, auditWritten: false })).toBe("angelegt-teilweise");
+    expect(noticeFromQuery("angelegt-teilweise")?.tone).toBe("warn");
   });
 });
 
